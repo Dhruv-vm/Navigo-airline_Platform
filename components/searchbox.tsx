@@ -228,12 +228,14 @@ export default function SearchBox() {
           font-weight: 500;
           color: var(--muted);
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
           border: none;
           background: transparent;
           letter-spacing: 0.01em;
+          user-select: none;
         }
         .sb-tab:hover { color: var(--text); }
+        .sb-tab:active { transform: scale(0.96); }
         .sb-tab.active {
           background: linear-gradient(135deg, var(--gold-1), var(--gold-2), var(--gold-3));
           color: var(--navy);
@@ -266,9 +268,11 @@ export default function SearchBox() {
           cursor: pointer;
           font-size: 16px;
           line-height: 1;
-          transition: background 0.15s;
+          transition: background 0.15s, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+          user-select: none;
         }
         .sb-pax-btn:hover { background: rgba(251,191,36,0.25); }
+        .sb-pax-btn:active { transform: scale(0.88); }
         .sb-pax-label {
           font-size: 11px;
           color: var(--muted);
@@ -292,9 +296,12 @@ export default function SearchBox() {
           border: 1px solid var(--border);
           border-radius: 16px;
           padding: 14px 18px;
-          transition: border-color 0.2s, box-shadow 0.2s;
+          transition: border-color 0.2s, box-shadow 0.2s, transform 0.18s ease;
           cursor: pointer;
           position: relative;
+        }
+        .sb-field:hover {
+          border-color: rgba(255,255,255,0.18);
         }
         .sb-field.is-open,
         .sb-field:focus-within {
@@ -326,6 +333,10 @@ export default function SearchBox() {
         }
 
         /* ── Airport picker dropdown ───────────────────────────── */
+        @keyframes pickerSlideDown {
+          from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
         .sb-picker {
           position: absolute;
           top: calc(100% + 8px);
@@ -340,6 +351,8 @@ export default function SearchBox() {
           padding: 6px;
           z-index: 60;
           cursor: default;
+          animation: pickerSlideDown 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          transform-origin: top;
         }
         .sb-picker-option {
           display: flex;
@@ -348,9 +361,15 @@ export default function SearchBox() {
           padding: 10px 12px;
           border-radius: 10px;
           cursor: pointer;
-          transition: background 0.15s;
+          transition: background 0.15s, transform 0.15s ease;
         }
-        .sb-picker-option:hover { background: rgba(251,191,36,0.1); }
+        .sb-picker-option:hover {
+          background: rgba(251,191,36,0.1);
+          transform: translateX(2px);
+        }
+        .sb-picker-option:active {
+          transform: scale(0.98);
+        }
         .sb-picker-option.is-selected { background: rgba(251,191,36,0.15); }
         .sb-picker-code {
           font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif;
@@ -385,14 +404,18 @@ export default function SearchBox() {
           cursor: pointer;
           font-size: 18px;
           flex-shrink: 0;
-          transition: background 0.2s, border-color 0.2s, transform 0.25s;
+          transition: background 0.2s, border-color 0.2s, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
           align-self: center;
           margin-top: 18px;
+          user-select: none;
         }
         .sb-swap:hover {
           background: rgba(251,191,36,0.18);
           border-color: rgba(251,191,36,0.45);
           transform: rotate(180deg);
+        }
+        .sb-swap:active {
+          transform: rotate(180deg) scale(0.9);
         }
 
         /* ── Date tile ─────────────────────────────────────────── */
@@ -404,7 +427,7 @@ export default function SearchBox() {
           border-radius: 16px;
           padding: 14px 18px;
           cursor: pointer;
-          transition: border-color 0.2s, box-shadow 0.2s;
+          transition: border-color 0.2s, box-shadow 0.2s, transform 0.18s ease;
           user-select: none;
         }
         .sb-date:hover {
@@ -426,9 +449,6 @@ export default function SearchBox() {
         }
 
         /* ── Search button ─────────────────────────────────────── */
-        /* Same blue → gold pill gradient used for every primary CTA in
-           the checkout flow (seats / passengers / flights results), so
-           the very first button a visitor sees matches the last one. */
         .sb-btn {
           padding: 0 32px;
           height: auto;
@@ -447,19 +467,33 @@ export default function SearchBox() {
           box-shadow:
             0 8px 30px rgba(56,189,248,0.18),
             0 8px 30px rgba(251,191,36,0.18);
-          transition: filter 0.2s, transform 0.15s;
+          transition: filter 0.2s, transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s;
           white-space: nowrap;
           align-self: stretch;
           flex-shrink: 0;
+          user-select: none;
         }
         .sb-btn:hover {
-          filter: brightness(1.06);
-          transform: translateY(-1px);
+          filter: brightness(1.08);
+          transform: translateY(-2px) scale(1.01);
+          box-shadow:
+            0 12px 36px rgba(56,189,248,0.28),
+            0 12px 36px rgba(251,191,36,0.28);
         }
-        .sb-btn:active { transform: translateY(0); }
+        .sb-btn:active {
+          transform: translateY(1px) scale(0.98);
+          filter: brightness(0.96);
+        }
 
         /* ── Calendar portal ───────────────────────────────────── */
-        /* Fixed overlay centered on viewport — never clips */
+        @keyframes calOverlayFade {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes calContentZoom {
+          from { opacity: 0; transform: scale(0.95) translateY(10px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
+        }
         .sb-cal-overlay {
           position: fixed;
           inset: 0;
@@ -467,9 +501,10 @@ export default function SearchBox() {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: rgba(5,8,20,0.7);
-          backdrop-filter: blur(6px);
+          background: rgba(5,8,20,0.72);
+          backdrop-filter: blur(8px);
           padding: 16px;
+          animation: calOverlayFade 200ms ease-out forwards;
         }
         .sb-cal-wrap {
           background: #0D1A2C;
@@ -482,6 +517,7 @@ export default function SearchBox() {
           max-width: calc(100vw - 32px);
           max-height: calc(100vh - 32px);
           overflow-y: auto;
+          animation: calContentZoom 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
         /* Style the DateRange calendar to match dark theme */
         .sb-cal-wrap .rdrCalendarWrapper,

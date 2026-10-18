@@ -420,12 +420,25 @@ export default function PaymentPage() {
   if (confirming || pendingConfirm) {
     return (
       <PageShell hideStepper>
-        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 text-center max-w-sm mx-auto">
+        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-5 text-center max-w-sm mx-auto px-4">
           {confirming ? (
-            <>
-              <span className="w-12 h-12 rounded-full border-2 border-[#E8C766] border-t-transparent animate-spin" />
-              <p className="text-sm text-slate-300">Finalizing your booking…</p>
-            </>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.3 }}
+              className="flex flex-col items-center gap-5"
+            >
+              <div className="relative w-16 h-16 flex items-center justify-center">
+                <span className="absolute inset-0 rounded-full bg-amber-400/20 blur-xl animate-pulse" />
+                <span className="absolute inset-0 rounded-full border-2 border-amber-300/20 border-t-amber-400 animate-spin" style={{ animationDuration: "1.2s" }} />
+                <span className="absolute inset-2 rounded-full border-2 border-cyan-400/20 border-b-cyan-300 animate-spin" style={{ animationDuration: "0.8s", animationDirection: "reverse" }} />
+                <span className="text-xl" aria-hidden>✈</span>
+              </div>
+              <div className="space-y-1">
+                <p className="font-display font-bold text-base text-white tracking-wide">Finalizing your booking</p>
+                <p className="text-xs text-slate-400">Securing your confirmed seat allocation and issuing official PNR…</p>
+              </div>
+            </motion.div>
           ) : (
             <>
               <span className="w-12 h-12 rounded-full bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-amber-300 text-xl">!</span>
@@ -433,7 +446,7 @@ export default function PaymentPage() {
               <p className="text-xs text-slate-500">{confirmError}</p>
               <button
                 onClick={() => pendingConfirm && confirmBookingInDb(pendingConfirm.amountPaid, pendingConfirm.method)}
-                className="mt-2 px-6 py-3 rounded-full pill-cta font-semibold text-sm"
+                className="btn-tactile mt-2 px-6 py-3 rounded-full pill-cta font-semibold text-sm active:scale-95"
               >
                 Retry Confirmation
               </button>

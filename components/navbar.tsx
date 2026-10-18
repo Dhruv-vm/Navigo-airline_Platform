@@ -26,9 +26,19 @@ export default function Navbar() {
   const [currency, setCurrency] = useState(CURRENCIES[0])
   const [currencyOpen, setCurrencyOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
 
   const currencyRef = useRef<HTMLDivElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 15)
+    }
+    handleScroll()
+    window.addEventListener("scroll", handleScroll, { passive: true })
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
 
   useEffect(() => {
     const token = localStorage.getItem("token")
@@ -90,7 +100,11 @@ export default function Navbar() {
     .join("") || null
 
   return (
-    <div className="fixed top-0 left-0 w-full z-50 bg-[#060B14]/85 backdrop-blur-xl border-b border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.25)]">
+    <div className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
+      scrolled
+        ? "bg-[#060B14]/95 backdrop-blur-2xl border-b border-white/[0.12] shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+        : "bg-[#060B14]/85 backdrop-blur-xl border-b border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.25)]"
+    }`}>
       {/* signature accent bar — same blue → gold pairing used across the
           checkout flow, so the navbar reads as part of the same product
           instead of a bare dark header. */}
@@ -101,7 +115,7 @@ export default function Navbar() {
         {/* LOGO */}
         <div
           onClick={() => router.push("/")}
-          className="flex items-center gap-2.5 sm:gap-3.5 cursor-pointer group shrink-0"
+          className="flex items-center gap-2.5 sm:gap-3.5 cursor-pointer group shrink-0 btn-tactile"
         >
           <div className="relative">
             <span className="absolute inset-0 rounded-full bg-amber-400/20 blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -129,7 +143,7 @@ export default function Navbar() {
 
           <button
             onClick={() => router.push("/")}
-            className={`relative px-4 py-1.5 rounded-full font-medium transition-all duration-200 ${
+            className={`btn-tactile relative px-4 py-1.5 rounded-full font-medium transition-all duration-200 active:scale-95 ${
               pathname === "/"
                 ? "text-[#060B14] bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500 shadow-[0_2px_12px_rgba(251,191,36,0.35)]"
                 : "text-slate-400 hover:text-white hover:bg-white/[0.05]"
@@ -138,12 +152,10 @@ export default function Navbar() {
             Home
           </button>
 
-          {/* ✅ Replaced the old "Flights" tab (which only enabled once a
-              search was already in progress) with a direct link to the
-              dashboard — always available, no gating condition needed. */}
+          {/* Direct link to dashboard */}
           <button
             onClick={() => router.push("/dashboard")}
-            className={`relative px-4 py-1.5 rounded-full font-medium transition-all duration-200 ${
+            className={`btn-tactile relative px-4 py-1.5 rounded-full font-medium transition-all duration-200 active:scale-95 ${
               pathname === "/dashboard"
                 ? "text-[#060B14] bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500 shadow-[0_2px_12px_rgba(251,191,36,0.35)]"
                 : "text-slate-400 hover:text-white hover:bg-white/[0.05]"
@@ -154,7 +166,7 @@ export default function Navbar() {
 
           <button
             onClick={() => router.push("/my-trips")}
-            className={`relative px-4 py-1.5 rounded-full font-medium transition-all duration-200 ${
+            className={`btn-tactile relative px-4 py-1.5 rounded-full font-medium transition-all duration-200 active:scale-95 ${
               pathname === "/my-trips" || pathname === "/trips"
                 ? "text-[#060B14] bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500 shadow-[0_2px_12px_rgba(251,191,36,0.35)]"
                 : "text-slate-400 hover:text-white hover:bg-white/[0.05]"
@@ -165,7 +177,7 @@ export default function Navbar() {
 
           <button
             onClick={() => router.push("/check-in")}
-            className={`relative px-3.5 py-1.5 rounded-full font-medium transition-all duration-200 flex items-center gap-1.5 ${
+            className={`btn-tactile relative px-3.5 py-1.5 rounded-full font-medium transition-all duration-200 active:scale-95 flex items-center gap-1.5 ${
               pathname === "/check-in"
                 ? "text-[#060B14] bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500 shadow-[0_2px_12px_rgba(251,191,36,0.35)]"
                 : "text-slate-400 hover:text-white hover:bg-white/[0.05]"
@@ -177,9 +189,12 @@ export default function Navbar() {
             </span>
           </button>
 
-          <p className="px-4 py-1.5 rounded-full font-medium text-slate-400 hover:text-white hover:bg-white/[0.05] cursor-pointer transition-all duration-200">
+          <button
+            onClick={() => router.push("/flights?origin=DEL&destination=BLR")}
+            className="btn-tactile px-4 py-1.5 rounded-full font-medium text-slate-400 hover:text-white hover:bg-white/[0.05] cursor-pointer transition-all duration-200 active:scale-95"
+          >
             Deals
-          </p>
+          </button>
 
           <button
             onClick={() => {
@@ -187,7 +202,7 @@ export default function Navbar() {
                 window.dispatchEvent(new CustomEvent("open_navibot"))
               }
             }}
-            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full font-medium transition-all duration-200 ${
+            className={`btn-tactile flex items-center gap-1.5 px-4 py-1.5 rounded-full font-medium transition-all duration-200 active:scale-95 ${
               pathname === "/navibot"
                 ? "text-[#060B14] bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500 shadow-[0_2px_12px_rgba(251,191,36,0.35)]"
                 : "text-slate-300 hover:text-white hover:bg-white/[0.05] group"
@@ -205,12 +220,11 @@ export default function Navbar() {
         {/* RIGHT */}
         <div className="flex items-center gap-3 md:gap-4 shrink-0">
 
-          {/* Currency — was a dead "USD" label; now a real INR-default
-              switcher styled like the rest of the site's dark popovers. */}
+          {/* Currency switcher */}
           <div className="relative hidden sm:block" ref={currencyRef}>
             <button
               onClick={() => setCurrencyOpen((v) => !v)}
-              className={`flex items-center gap-1.5 text-sm px-2.5 py-1.5 rounded-full border transition-colors ${
+              className={`btn-tactile flex items-center gap-1.5 text-sm px-2.5 py-1.5 rounded-full border transition-all active:scale-95 ${
                 currencyOpen
                   ? "text-amber-300 border-amber-400/30 bg-amber-400/[0.08]"
                   : "text-slate-300 border-transparent hover:text-white hover:bg-white/[0.05]"
@@ -227,7 +241,7 @@ export default function Navbar() {
             </button>
 
             {currencyOpen && (
-              <div className="absolute right-0 mt-2 w-44 bg-gradient-to-b from-[#0D1A2C] to-[#0A1424] border border-white/[0.08] rounded-xl shadow-[0_16px_48px_rgba(0,0,0,0.4)] overflow-hidden py-1.5 dropdown-in">
+              <div className="dropdown-animate-in absolute right-0 mt-2 w-44 bg-gradient-to-b from-[#0D1A2C] to-[#0A1424] border border-white/[0.08] rounded-xl shadow-[0_16px_48px_rgba(0,0,0,0.4)] overflow-hidden py-1.5 z-50">
                 {CURRENCIES.map((c) => (
                   <button
                     key={c.code}
@@ -252,7 +266,7 @@ export default function Navbar() {
           {/* Theme toggle */}
           <button
             aria-label="Toggle theme"
-            className="w-8 h-8 rounded-full flex items-center justify-center text-slate-300 hover:text-amber-300 hover:bg-white/[0.05] transition-colors"
+            className="btn-tactile w-8 h-8 rounded-full flex items-center justify-center text-slate-300 hover:text-amber-300 hover:bg-white/[0.05] transition-all active:scale-90"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path
@@ -267,12 +281,11 @@ export default function Navbar() {
 
           <div className="w-px h-6 bg-white/[0.08] hidden sm:block" />
 
-          {/* PROFILE — now a real dropdown instead of static "Hi, X /
-              Logout" text sitting permanently in the header. */}
+          {/* PROFILE */}
           <div className="relative" ref={profileRef}>
             <button
               onClick={() => setProfileOpen((v) => !v)}
-              className="flex items-center gap-2.5 group"
+              className="btn-tactile flex items-center gap-2.5 group active:scale-95"
             >
               <div
                 className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all ${
@@ -312,7 +325,7 @@ export default function Navbar() {
             </button>
 
             {profileOpen && (
-              <div className="absolute right-0 mt-2 w-52 bg-gradient-to-b from-[#0D1A2C] to-[#0A1424] border border-white/[0.08] rounded-xl shadow-[0_16px_48px_rgba(0,0,0,0.4)] overflow-hidden dropdown-in">
+              <div className="dropdown-animate-in absolute right-0 mt-2 w-52 bg-gradient-to-b from-[#0D1A2C] to-[#0A1424] border border-white/[0.08] rounded-xl shadow-[0_16px_48px_rgba(0,0,0,0.4)] overflow-hidden z-50">
                 {user ? (
                   <>
                     <div className="px-4 py-3 border-b border-white/[0.06]">

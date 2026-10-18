@@ -59,7 +59,7 @@ html {
   100% { transform: translateY(0px); }
 }
 
-/* ✅ LOGIN PAGE ENTRANCE ANIMATION */
+/* ✅ ENTRANCE & MOTION KEYFRAMES */
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -68,5 +68,120 @@ html {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes seatPop {
+  0% { transform: scale(0.88); }
+  50% { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+
+@keyframes rippleEffect {
+  0% {
+    transform: scale(0);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* ✅ GLOBAL MOTION TOKENS & UTILITIES */
+:root {
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Tactile button micro-interaction */
+.btn-tactile {
+  transition: transform 160ms var(--ease-spring), filter 160ms ease, box-shadow 160ms ease;
+  user-select: none;
+}
+.btn-tactile:hover {
+  filter: brightness(1.05);
+}
+.btn-tactile:active {
+  transform: scale(0.97) translateY(1px);
+}
+
+/* Shared Premium Pill CTA */
+.pill-cta {
+  background: linear-gradient(90deg, #38BDF8 0%, #60A5FA 30%, #D4AF37 70%, #FBBF24 100%);
+  color: #060B14;
+  font-weight: 700;
+  box-shadow: 0 4px 20px rgba(56,189,248,0.2), 0 4px 20px rgba(251,191,36,0.2);
+  transition: transform 180ms var(--ease-spring), filter 180ms ease, box-shadow 180ms ease;
+  user-select: none;
+}
+.pill-cta:hover {
+  filter: brightness(1.06);
+  box-shadow: 0 8px 28px rgba(56,189,248,0.28), 0 8px 28px rgba(251,191,36,0.28);
+}
+.pill-cta:active {
+  transform: scale(0.98) translateY(1px);
+  filter: brightness(0.97);
+}
+
+/* Ripple effect used across buttons */
+.btn-ripple {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  margin-left: -10px;
+  margin-top: -10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+  animation: rippleEffect 600ms linear forwards;
+}
+
+/* Interactive Card Elevation */
+.card-interactive {
+  transition: transform 240ms var(--ease-smooth), border-color 240ms ease, box-shadow 240ms ease;
+}
+.card-interactive:hover {
+  transform: translateY(-3px);
+}
+
+/* Seat Pop for selection */
+.seat-pop {
+  animation: seatPop 220ms var(--ease-spring);
+}
+
+/* Dropdown entrance */
+.dropdown-animate-in {
+  animation: dropdownFadeIn 180ms var(--ease-expo) forwards;
+  transform-origin: top;
+}
+
+/* Accessible focus visible */
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #020617, 0 0 0 4px rgba(251, 191, 36, 0.65);
+}
+
+/* ✅ REDUCED MOTION PREFERENCE */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

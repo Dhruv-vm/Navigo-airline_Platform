@@ -332,6 +332,9 @@ export default function Home() {
           box-shadow: 0 6px 26px -6px rgba(251,191,36,0.5);
           transform: translateY(-1px);
         }
+        .hp-hero-badge:active {
+          transform: scale(0.98);
+        }
 
         /* ── Section grid ── */
         .hp-sections {
@@ -415,7 +418,7 @@ export default function Home() {
           border: 1px solid rgba(251,191,36,0.3);
         }
 
-        /* ── Route rows ── */
+        /* ── Route row ── */
         .hp-route-row {
           display: flex;
           align-items: center;
@@ -426,12 +429,16 @@ export default function Home() {
           background: rgba(255,255,255,0.025);
           border: 1px solid transparent;
           cursor: pointer;
-          transition: background 0.2s, border-color 0.2s, transform 0.2s;
+          transition: background 0.18s, border-color 0.18s, transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+          user-select: none;
         }
         .hp-route-row:hover {
           background: rgba(251,191,36,0.1);
           border-color: rgba(251,191,36,0.3);
-          transform: translateX(2px);
+          transform: translateX(3px);
+        }
+        .hp-route-row:active {
+          transform: scale(0.98);
         }
         .hp-route-row.is-active {
           background: rgba(251,191,36,0.12);
@@ -492,18 +499,20 @@ export default function Home() {
           height: 100%;
           justify-content: flex-end;
           cursor: pointer;
-          transition: transform 0.2s;
+          transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+          user-select: none;
         }
-        .hp-bar-wrap:hover { transform: translateY(-2px); }
+        .hp-bar-wrap:hover { transform: translateY(-4px) scale(1.04); }
+        .hp-bar-wrap:active { transform: translateY(0) scale(0.96); }
         .hp-bar {
           width: 100%;
           border-radius: 8px 8px 3px 3px;
           background-image: linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0) 40%);
           background-blend-mode: overlay;
-          transition: opacity 0.2s, filter 0.2s, transform 0.2s, height 0.4s ease-out;
+          transition: opacity 0.2s, filter 0.2s, transform 0.2s, height 0.35s cubic-bezier(0.16, 1, 0.3, 1);
           min-height: 8px;
         }
-        .hp-bar-wrap:hover .hp-bar { filter: brightness(1.15); }
+        .hp-bar-wrap:hover .hp-bar { filter: brightness(1.2); }
         .hp-bar-date {
           font-size: 9px;
           color: var(--muted);
@@ -530,11 +539,16 @@ export default function Home() {
           align-items: center;
           justify-content: space-between;
           cursor: pointer;
-          transition: background 0.2s, border-color 0.2s;
+          transition: background 0.2s, border-color 0.2s, transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+          user-select: none;
         }
         .hp-bar-best:hover {
           background: rgba(251,191,36,0.15);
           border-color: rgba(251,191,36,0.4);
+          transform: translateY(-1px);
+        }
+        .hp-bar-best:active {
+          transform: scale(0.98);
         }
 
         /* ── Insight items ── */

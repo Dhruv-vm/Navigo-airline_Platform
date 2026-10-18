@@ -2164,8 +2164,8 @@ function PageStyles() {
       @keyframes glowPulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
       .glow-pulse { animation: glowPulse 1.8s ease-in-out infinite; }
 
-      @keyframes seatPop { 0% { transform: scale(0.85); } 60% { transform: scale(1.12); } 100% { transform: scale(1.05); } }
-      .seat-pop { animation: seatPop 380ms cubic-bezier(0.34,1.56,0.64,1); }
+      @keyframes seatPop { 0% { transform: scale(0.88); } 55% { transform: scale(1.12); } 100% { transform: scale(1); } }
+      .seat-pop { animation: seatPop 240ms cubic-bezier(0.34,1.56,0.64,1); }
 
       @keyframes shimmerSweep { 0% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
       .shimmer-sweep { animation: shimmerSweep 2.8s ease-in-out infinite; }

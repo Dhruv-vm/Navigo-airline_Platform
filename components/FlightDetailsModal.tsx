@@ -138,7 +138,7 @@ export default function FlightDetailsModal({
           <button
             onClick={onClose}
             aria-label="Close"
-            className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors"
+            className="btn-tactile absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.08] transition-all active:scale-90"
           >
             ✕
           </button>
@@ -199,7 +199,7 @@ export default function FlightDetailsModal({
               <button
                 key={t.key}
                 onClick={() => setTab(t.key)}
-                className={`relative pb-3 text-sm font-medium transition-colors ${
+                className={`btn-tactile relative pb-3 text-sm font-medium transition-colors active:scale-95 ${
                   tab === t.key ? "text-white" : "text-slate-500 hover:text-slate-300"
                 }`}
               >

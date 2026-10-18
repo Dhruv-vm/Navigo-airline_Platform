@@ -229,7 +229,7 @@ export default function BoardingPassModal({
 
             <button
               onClick={onClose}
-              className="w-9 h-9 rounded-full bg-white/[0.05] border border-white/[0.1] text-slate-400 hover:text-white hover:bg-white/[0.1] flex items-center justify-center transition-colors"
+              className="btn-tactile w-9 h-9 rounded-full bg-white/[0.05] border border-white/[0.1] text-slate-400 hover:text-white hover:bg-white/[0.1] flex items-center justify-center transition-colors active:scale-90"
               aria-label="Close modal"
             >
               ✕
@@ -245,7 +245,7 @@ export default function BoardingPassModal({
                     <button
                       key={leg.flightInstanceId || i}
                       onClick={() => setActiveLegIdx(i)}
-                      className={`px-3.5 py-1 rounded-full text-xs font-semibold transition-all ${
+                      className={`btn-tactile px-3.5 py-1 rounded-full text-xs font-semibold transition-all active:scale-95 ${
                         activeLegIdx === i
                           ? "text-[#060B14] bg-gradient-to-r from-amber-300 to-amber-500 shadow-[0_2px_10px_rgba(251,191,36,0.35)]"
                           : "text-slate-400 hover:text-white"
@@ -265,7 +265,7 @@ export default function BoardingPassModal({
                       <button
                         key={pax.id || i}
                         onClick={() => setActivePaxIdx(i)}
-                        className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                        className={`btn-tactile px-3 py-1 rounded-full text-xs font-medium transition-all active:scale-95 ${
                           activePaxIdx === i
                             ? "bg-[#D4AF37]/25 text-[#E8C766] border border-[#D4AF37]/50 shadow-[0_0_10px_rgba(212,175,55,0.25)]"
                             : "bg-white/[0.04] text-slate-400 border border-white/[0.08] hover:text-white"
@@ -315,7 +315,7 @@ export default function BoardingPassModal({
             <div className="flex items-center gap-3">
               <button
                 onClick={handlePrint}
-                className="px-4 py-2 rounded-full border border-white/[0.12] text-xs font-semibold text-slate-300 hover:bg-white/[0.06] hover:text-white transition-colors flex items-center gap-1.5"
+                className="btn-tactile px-4 py-2 rounded-full border border-white/[0.12] text-xs font-semibold text-slate-300 hover:bg-white/[0.06] hover:text-white transition-all active:scale-95 flex items-center gap-1.5"
               >
                 🖨️ Print Pass
               </button>
@@ -323,7 +323,7 @@ export default function BoardingPassModal({
               <button
                 onClick={handleDownloadPdf}
                 disabled={downloading}
-                className="px-5 py-2 rounded-full pill-cta text-xs font-bold transition-all shadow-[0_2px_14px_rgba(251,191,36,0.25)] flex items-center gap-1.5 disabled:opacity-50"
+                className="btn-tactile px-5 py-2 rounded-full pill-cta text-xs font-bold transition-all shadow-[0_2px_14px_rgba(251,191,36,0.25)] flex items-center gap-1.5 disabled:opacity-50 active:scale-95"
               >
                 {downloading ? (
                   <>
