@@ -103,6 +103,11 @@ const airlineLogos: Record<string, string> = {
   "Akasa Air": "/airlines/akasa.png",
   "Emirates": "/airlines/emirates.png",
   "Qatar Airways": "/airlines/qatar.png",
+  "Singapore Airlines": "/airlines/singapore.png",
+  "Singapore": "/airlines/singapore.png",
+  "SIA": "/airlines/singapore.png",
+  "Navigo Airlines": "/logo.png",
+  "Navigo": "/logo.png",
 }
 
 function formatTime(timeStr?: string): string {
@@ -180,7 +185,10 @@ export default function PaymentPage() {
   useEffect(() => {
     if (!selection?.bookingId) return
     let cancelled = false
-    fetch(`/api/bookings/${selection.bookingId}/seats`)
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+    fetch(`/api/bookings/${selection.bookingId}/seats`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled || !data?.seats) return
@@ -345,10 +353,19 @@ export default function PaymentPage() {
     setConfirming(true)
     setConfirmError(null)
     try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
       const res = await fetch(`/api/bookings/${selection.bookingId}/confirm`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amountPaid, paymentMethod }),
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          amountPaid,
+          paymentMethod,
+          redeemedPoints: redeemEnabled ? actualPointsUsed : 0,
+          gatewayMode: "sandbox",
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data?.error || "Couldn't confirm the booking")

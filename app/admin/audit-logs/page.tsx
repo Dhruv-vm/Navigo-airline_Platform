@@ -1,13 +1,16 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { getAdminAuthHeaders } from "@/lib/admin-client"
 
 export default function AdminAuditLogsPage() {
   const [logs, setLogs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch("/api/admin/audit-logs")
+    fetch("/api/admin/audit-logs", {
+      headers: getAdminAuthHeaders(),
+    })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d?.logs) setLogs(d.logs)

@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
-import { recordAdminAuditLog } from "@/lib/admin-auth"
+import { recordAdminAuditLog, getAdminFromRequest } from "@/lib/admin-auth"
 import { deriveFlightNumber } from "@/app/checkout/payment/bookingUtils"
 
 export async function GET(req: Request) {
+  const admin = getAdminFromRequest(req)
+  if (!admin) {
+    return NextResponse.json({ error: "Unauthorized administrative access" }, { status: 401 })
+  }
+
   try {
     const { searchParams } = new URL(req.url)
     const status = searchParams.get("status")
@@ -11,7 +16,27 @@ export async function GET(req: Request) {
 
     let query = supabase
       .from("bookings")
-      .select("*, booking_passengers(*), booking_seats(*)")
+      .select(`
+        id,
+        pnr,
+        status,
+        contact_email,
+        contact_mobile,
+        passenger_count,
+        base_fare,
+        taxes_and_fees,
+        seat_selection_price,
+        meals_price,
+        total_price,
+        paid_amount,
+        payment_method,
+        paid_at,
+        created_at,
+        depart_flight_instance_id,
+        return_flight_instance_id,
+        booking_passengers(id, title, first_name, last_name, email, mobile, passenger_type, gender, date_of_birth, frequent_flyer),
+        booking_seats(seat_number, cabin_class, price)
+      `)
       .order("created_at", { ascending: false })
 
     if (status && status !== "ALL") {
@@ -34,17 +59,17 @@ export async function GET(req: Request) {
     if (instanceIds.length > 0) {
       const { data: instances } = await supabase
         .from("flight_instances")
-        .select("*, flights(*)")
+        .select("id, travel_date, flights(id, airline, origin, destination, departure_time, arrival_time)")
         .in("id", instanceIds)
 
       if (instances) {
-        instanceMap = new Map(instances.map((i) => [i.id, i]))
+        instanceMap = new Map(instances.map((i: any) => [i.id, i]))
       }
     }
 
     let list = (bookings || []).map((b: any) => {
       const depInst = instanceMap.get(b.depart_flight_instance_id)
-      const depFlight = depInst?.flights
+      const depFlight: any = Array.isArray(depInst?.flights) ? depInst.flights[0] : depInst?.flights
       const primaryPax = b.booking_passengers?.[0]
       const paxName = primaryPax
         ? `${primaryPax.title ? primaryPax.title + " " : ""}${primaryPax.first_name || ""} ${primaryPax.last_name || ""}`.trim()
@@ -113,6 +138,11 @@ export async function GET(req: Request) {
 }
 
 export async function PATCH(req: Request) {
+  const admin = getAdminFromRequest(req)
+  if (!admin) {
+    return NextResponse.json({ error: "Unauthorized administrative access" }, { status: 401 })
+  }
+
   try {
     const body = await req.json()
     const { id, status, reason } = body
@@ -131,7 +161,7 @@ export async function PATCH(req: Request) {
     if (error) throw error
 
     recordAdminAuditLog(
-      { id: "adm-booking", name: "Booking Operations Agent", role: "BOOKING_AGENT" },
+      admin,
       `BOOKING_STATUS_${status.toUpperCase()}`,
       `PNR ${data.pnr} (ID: ${id})`,
       { reason, newStatus: status }

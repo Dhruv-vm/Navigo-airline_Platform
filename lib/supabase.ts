@@ -1,4 +1,27 @@
 import { createClient } from "@supabase/supabase-js"
+import fs from "fs"
+import path from "path"
+
+// Ensure env variables are loaded even in standalone node/tsx scripts
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+  try {
+    const envFile = path.join(process.cwd(), ".env.local")
+    if (fs.existsSync(envFile)) {
+      const content = fs.readFileSync(envFile, "utf-8")
+      for (const line of content.split("\n")) {
+        const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/)
+        if (match) {
+          const key = match[1]
+          let value = match[2] || ""
+          if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+            value = value.slice(1, -1)
+          }
+          if (!process.env[key]) process.env[key] = value.trim()
+        }
+      }
+    }
+  } catch {}
+}
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://hrqeizliqbgjyqgwkesb.supabase.co"
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "dummy_key"
@@ -211,8 +234,51 @@ INITIAL_FLIGHTS.forEach((f) => {
   })
 })
 
+const INITIAL_DEMO_USERS = [
+  {
+    id: "d7dfa567-063a-4b09-b5f5-ed09dd61df2b",
+    name: "Dhruv",
+    email: "dhruv@test.com",
+    phone: "9999999999",
+    password: "$2b$10$Fg5HtDCWFJlEBOrZ6hEuAeCGcK9E4zrj7FGQW4/K3IsM1d0krY0Vy",
+    created_at: "2026-06-10T08:53:38.728662",
+  },
+  {
+    id: "e265b8d4-3d75-4628-abbe-184d86ded72b",
+    name: "shreya",
+    email: "test1@gmail.com",
+    phone: "9994455733",
+    password: "$2b$10$1qLmbxVYf6D5vAoq5doi8O5r.H2EBmVEzzNX2jddsSXslSgnl86kG",
+    created_at: "2026-06-26T12:42:44.121059",
+  },
+  {
+    id: "cab709ba-675e-40a7-aad0-c166b100ce86",
+    name: "test",
+    email: "test@test.com",
+    phone: "96266323229",
+    password: "$2b$10$AKmxWo4mV9dwsIM6sOtLj.ctPfmmfGaRmAUbXqBhYo1VqUXEsjXMq",
+    created_at: "2026-06-10T08:56:08.241192",
+  },
+  {
+    id: "de1149eb-d8f6-4cb2-b319-e3a83b8cfe91",
+    name: "Dhruv vm",
+    email: "karam@gmail.com",
+    phone: "9626632322",
+    password: "$2b$10$Fg5HtDCWFJlEBOrZ6hEuAeCGcK9E4zrj7FGQW4/K3IsM1d0krY0Vy",
+    created_at: "2026-08-06T12:30:04.663628",
+  },
+  {
+    id: "2ef4b7b0-5871-4464-9c55-7a95f887f7de",
+    name: "shreya",
+    email: "vmdhruv1@gmail.com",
+    phone: "9994632244",
+    password: "$2b$10$1qLmbxVYf6D5vAoq5doi8O5r.H2EBmVEzzNX2jddsSXslSgnl86kG",
+    created_at: "2026-06-10T10:02:01.892206",
+  },
+]
+
 const localStore: LocalDB = {
-  users: [],
+  users: [...INITIAL_DEMO_USERS],
   flights: [...INITIAL_FLIGHTS],
   flight_instances: [...INITIAL_INSTANCES],
   flight_instance_classes: [],
@@ -224,6 +290,49 @@ const localStore: LocalDB = {
   user_biometric_profiles: [],
   audit_logs: [],
 }
+
+const DATA_DIR = path.join(process.cwd(), ".data")
+const DB_FILE = path.join(DATA_DIR, "navigo_db.json")
+
+function loadPersistedStore() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true })
+    }
+    if (fs.existsSync(DB_FILE)) {
+      const raw = fs.readFileSync(DB_FILE, "utf-8")
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed === "object") {
+        for (const [key, rows] of Object.entries(parsed)) {
+          if (Array.isArray(rows) && rows.length > 0) {
+            (localStore as any)[key] = rows
+          }
+        }
+      }
+    }
+    // Ensure initial users are present if users array was empty
+    if (!localStore.users || localStore.users.length === 0) {
+      localStore.users = [...INITIAL_DEMO_USERS]
+      persistStore()
+    }
+  } catch (e) {
+    console.warn("[lib/supabase] Note loading persisted local store:", e)
+  }
+}
+
+function persistStore() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true })
+    }
+    fs.writeFileSync(DB_FILE, JSON.stringify(localStore, null, 2), "utf-8")
+  } catch (e) {
+    console.warn("[lib/supabase] Note saving persisted local store:", e)
+  }
+}
+
+// Load on initialization
+loadPersistedStore()
 
 function getTable(name: string): any[] {
   if (!(name in localStore)) {
@@ -427,6 +536,7 @@ export class LocalQueryBuilder {
         inserted.push(newRow)
       }
 
+      persistStore()
       const resData = Array.isArray(this.mutationData) ? inserted : inserted[0]
       return { data: this.isSingle || this.isMaybeSingle ? inserted[0] : resData, error: null }
     }
@@ -459,6 +569,7 @@ export class LocalQueryBuilder {
         }
       }
 
+      persistStore()
       return { data: Array.isArray(this.mutationData) ? result : result[0], error: null }
     }
 
@@ -468,6 +579,7 @@ export class LocalQueryBuilder {
       for (const row of matched) {
         Object.assign(row, this.mutationData, { updated_at: new Date().toISOString() })
       }
+      persistStore()
       return { data: this.isSingle || this.isMaybeSingle ? matched[0] || null : matched, error: null }
     }
 
@@ -475,6 +587,7 @@ export class LocalQueryBuilder {
     if (this.op === "delete") {
       const remaining = table.filter((row: any) => !this.filters.every((f) => matchFilter(row, f)))
       ;(localStore as any)[this.tableName] = remaining
+      persistStore()
       return { data: null, error: null }
     }
 
@@ -520,18 +633,32 @@ export class LocalQueryBuilder {
   }
 }
 
-// Track whether the remote Supabase URL is reachable
-let isRemoteDead = false
+// 15-second dynamic recovery cooldown before retrying remote Supabase
+let lastRemoteFailureTime = 0
+const COOLDOWN_MS = 15000
+
+function isRemoteCoolingDown(): boolean {
+  if (lastRemoteFailureTime === 0) return false
+  if (Date.now() - lastRemoteFailureTime > COOLDOWN_MS) {
+    lastRemoteFailureTime = 0
+    return false
+  }
+  return true
+}
+
+function markRemoteFailure() {
+  lastRemoteFailureTime = Date.now()
+}
 
 function createResilientChain(tableName: string) {
   const local = new LocalQueryBuilder(tableName)
   let rawChain: any = null
 
-  if (!isRemoteDead) {
+  if (!isRemoteCoolingDown()) {
     try {
       rawChain = rawSupabase.from(tableName)
     } catch {
-      isRemoteDead = true
+      markRemoteFailure()
     }
   }
 
@@ -539,22 +666,46 @@ function createResilientChain(tableName: string) {
     get(target: any, prop: string) {
       if (prop === "then") {
         return (onfulfilled?: any, onrejected?: any) => {
-          if (isRemoteDead || !rawChain || typeof rawChain.then !== "function") {
+          if (isRemoteCoolingDown() || !rawChain || typeof rawChain.then !== "function") {
             return local.execute().then(onfulfilled, onrejected)
           }
 
-          // Try remote first with short timeout, fallback to local on network error
+          // Try remote first
           return rawChain
             .then((result: any) => {
               if (result?.error && isNetworkError(result.error)) {
-                isRemoteDead = true
+                markRemoteFailure()
                 return local.execute().then(onfulfilled, onrejected)
               }
+
+              // Fallback lookup: if querying users by email or id and remote returns not found,
+              // check local persisted store in case user was registered during an offline window
+              if (
+                tableName === "users" &&
+                (!result?.data || (Array.isArray(result.data) && result.data.length === 0))
+              ) {
+                const localRes = local.execute()
+                return localRes.then((lRes) => {
+                  if (lRes?.data && (!Array.isArray(lRes.data) || lRes.data.length > 0)) {
+                    return onfulfilled ? onfulfilled(lRes) : lRes
+                  }
+                  return onfulfilled ? onfulfilled(result) : result
+                })
+              }
+
+              // Dual-sync mutations to local store on remote success
+              if (result && !result.error && (local as any).op !== "select") {
+                try {
+                  local.execute()
+                  persistStore()
+                } catch {}
+              }
+
               return onfulfilled ? onfulfilled(result) : result
             })
             .catch((err: any) => {
               if (isNetworkError(err)) {
-                isRemoteDead = true
+                markRemoteFailure()
                 return local.execute().then(onfulfilled, onrejected)
               }
               return onrejected ? onrejected(err) : Promise.reject(err)
@@ -569,11 +720,11 @@ function createResilientChain(tableName: string) {
         }
 
         // Forward to remote chain if alive
-        if (!isRemoteDead && rawChain && typeof rawChain[prop] === "function") {
+        if (!isRemoteCoolingDown() && rawChain && typeof rawChain[prop] === "function") {
           try {
             rawChain = rawChain[prop](...args)
           } catch {
-            isRemoteDead = true
+            markRemoteFailure()
           }
         }
 
@@ -603,6 +754,9 @@ function isNetworkError(err: any): boolean {
     msg.includes("ECONNREFUSED") ||
     msg.includes("Failed to fetch") ||
     msg.includes("NetworkError") ||
-    msg.includes("TypeError")
+    msg.includes("TypeError") ||
+    msg.includes("502 Bad Gateway") ||
+    msg.includes("503 Service Unavailable") ||
+    msg.includes("504 Gateway Timeout")
   )
 }

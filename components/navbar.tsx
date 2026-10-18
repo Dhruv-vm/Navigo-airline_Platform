@@ -10,11 +10,19 @@ const CURRENCIES = [
   { code: "AED", symbol: "د.إ", label: "UAE Dirham" },
 ]
 
+let cachedAuthUser: any = null
+let inflightAuthPromise: Promise<any> | null = null
+
+export function clearAuthCache() {
+  cachedAuthUser = null
+  inflightAuthPromise = null
+}
+
 export default function Navbar() {
   const router = useRouter()
   const pathname = usePathname()
 
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<any>(cachedAuthUser)
   const [currency, setCurrency] = useState(CURRENCIES[0])
   const [currencyOpen, setCurrencyOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
@@ -24,18 +32,38 @@ export default function Navbar() {
 
   useEffect(() => {
     const token = localStorage.getItem("token")
+    if (!token) {
+      setUser(null)
+      cachedAuthUser = null
+      return
+    }
 
-    if (!token) return
+    if (cachedAuthUser) {
+      setUser(cachedAuthUser)
+      return
+    }
 
-    fetch("/api/auth/me", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.user) setUser(data.user)
+    if (!inflightAuthPromise) {
+      inflightAuthPromise = fetch("/api/auth/me", {
+        headers: { Authorization: `Bearer ${token}` },
       })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.user) {
+            cachedAuthUser = data.user
+            return data.user
+          }
+          return null
+        })
+        .catch(() => null)
+        .finally(() => {
+          inflightAuthPromise = null
+        })
+    }
+
+    inflightAuthPromise.then((u) => {
+      if (u) setUser(u)
+    })
   }, [])
 
   // close either dropdown on outside click
@@ -49,6 +77,7 @@ export default function Navbar() {
   }, [])
 
   const handleLogout = () => {
+    clearAuthCache()
     localStorage.removeItem("token")
     router.push("/login")
   }
@@ -67,12 +96,12 @@ export default function Navbar() {
           instead of a bare dark header. */}
       <div className="h-[2px] w-full bg-gradient-to-r from-blue-400 via-amber-400 to-amber-300" />
 
-      <div className="max-w-7xl mx-auto flex justify-between items-center px-6 md:px-10 py-2.5">
+      <div className="max-w-7xl mx-auto flex justify-between items-center px-4 sm:px-6 md:px-10 py-2 sm:py-2.5">
 
         {/* LOGO */}
         <div
           onClick={() => router.push("/")}
-          className="flex items-center gap-3.5 cursor-pointer group shrink-0"
+          className="flex items-center gap-2.5 sm:gap-3.5 cursor-pointer group shrink-0"
         >
           <div className="relative">
             <span className="absolute inset-0 rounded-full bg-amber-400/20 blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -80,7 +109,7 @@ export default function Navbar() {
               <img
                 src="/logo.png"
                 alt="Navigo"
-                className="relative w-16 h-16 object-contain transition-transform duration-300 group-hover:scale-105"
+                className="relative w-11 h-11 sm:w-16 sm:h-16 object-contain transition-transform duration-300 group-hover:scale-105"
               />
             </div>
           </div>

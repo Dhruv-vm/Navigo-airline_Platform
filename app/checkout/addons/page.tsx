@@ -59,7 +59,12 @@ const airlineLogos: Record<string, string> = {
   "Akasa Air": "/airlines/akasa.png",
   "Emirates": "/airlines/emirates.png",
   "Qatar Airways": "/airlines/qatar.png",
-  "Japan Airlines": "/airlines/japanairlines.png",
+  "Japan Airlines": "/airlines/jal.png",
+  "Singapore Airlines": "/airlines/singapore.png",
+  "Singapore": "/airlines/singapore.png",
+  "SIA": "/airlines/singapore.png",
+  "Navigo Airlines": "/logo.png",
+  "Navigo": "/logo.png",
 }
 
 type CategoryId = "recommended" | "baggage" | "comfort" | "meals" | "essentials" | "insurance" | "airport"
@@ -352,12 +357,11 @@ export default function AddonsPage() {
       return
     }
     try {
-      // Releases this booking's booking_seats rows for its flight
-      // instances (and restores the seat-count columns those rows had
-      // decremented) so the seats are actually free for other travelers
-      // immediately, rather than sitting locked until the 15-minute hold
-      // naturally expires.
-      await fetch(`/api/bookings/${selection.bookingId}/seats`, { method: "DELETE" })
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+      await fetch(`/api/bookings/${selection.bookingId}/seats`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
 
       // ✅ FIX: the release above only touches the DB — sessionStorage
       // still had the old holdExpiresAt / seatSelectionPrice, so hitting

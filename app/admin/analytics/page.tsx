@@ -1,12 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { getAdminAuthHeaders } from "@/lib/admin-client"
 
 export default function AdminAnalyticsPage() {
   const [stats, setStats] = useState<any>(null)
 
   useEffect(() => {
-    fetch("/api/admin/stats")
+    fetch("/api/admin/stats", { headers: getAdminAuthHeaders() })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d) setStats(d)

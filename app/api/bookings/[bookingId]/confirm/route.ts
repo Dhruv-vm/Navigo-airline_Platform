@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/auth"
 
 // POST /api/bookings/[bookingId]/confirm
 //
@@ -34,6 +35,11 @@ function generatePnr(): string {
 type ConfirmPayload = {
   amountPaid: number
   paymentMethod: "card" | "upi"
+  redeemedPoints?: number
+  gatewayMode?: "sandbox" | "live"
+  razorpayPaymentId?: string
+  razorpayOrderId?: string
+  razorpaySignature?: string
 }
 
 export async function POST(
@@ -47,13 +53,15 @@ export async function POST(
     if (!bookingId) {
       return NextResponse.json({ error: "Missing booking id" }, { status: 400 })
     }
-    if (typeof body.amountPaid !== "number") {
-      return NextResponse.json({ error: "Missing amountPaid" }, { status: 400 })
+    if (typeof body.amountPaid !== "number" || isNaN(body.amountPaid) || body.amountPaid < 0) {
+      return NextResponse.json({ error: "Valid amountPaid is required" }, { status: 400 })
     }
+
+    const user = getUserFromRequest(req)
 
     const { data: booking, error: fetchError } = await supabase
       .from("bookings")
-      .select("id, status, pnr")
+      .select("id, status, pnr, user_id, total_price")
       .eq("id", bookingId)
       .single()
 
@@ -62,14 +70,73 @@ export async function POST(
       return NextResponse.json({ error: "Booking not found" }, { status: 404 })
     }
 
+    if (booking.user_id && (!user || user.userId !== booking.user_id)) {
+      return NextResponse.json({ error: "Unauthorized access to this booking" }, { status: 403 })
+    }
+
+    // ── Payment Gateway Mode: Sandbox vs Live ──
+    const isLiveConfigured = Boolean(process.env.RAZORPAY_KEY_SECRET || process.env.STRIPE_SECRET_KEY)
+    const isLiveModeRequested = process.env.PAYMENT_GATEWAY_MODE === "live" || body.gatewayMode === "live"
+    let gatewayMode: "sandbox" | "live" = "sandbox"
+
+    if (isLiveModeRequested && isLiveConfigured) {
+      if (process.env.RAZORPAY_KEY_SECRET) {
+        const { razorpayPaymentId, razorpayOrderId, razorpaySignature } = body
+        if (!razorpayPaymentId || !razorpayOrderId || !razorpaySignature) {
+          return NextResponse.json(
+            { error: "Missing required live payment proof (razorpayPaymentId, razorpayOrderId, razorpaySignature)" },
+            { status: 400 }
+          )
+        }
+        const crypto = await import("crypto")
+        const expectedSignature = crypto
+          .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+          .update(`${razorpayOrderId}|${razorpayPaymentId}`)
+          .digest("hex")
+
+        if (expectedSignature !== razorpaySignature) {
+          return NextResponse.json(
+            { error: "Invalid live payment signature verification failed" },
+            { status: 400 }
+          )
+        }
+      }
+
+      const trustedTotalPrice = Number(booking.total_price || 0)
+      const redeemedPoints = Math.max(0, Math.floor(Number(body.redeemedPoints || 0)))
+      const pointsDiscount = Math.floor(redeemedPoints / 2)
+      if (trustedTotalPrice > 0) {
+        const expectedMin = Math.max(1, trustedTotalPrice - pointsDiscount)
+        if (body.amountPaid < expectedMin - 1 || body.amountPaid > trustedTotalPrice + 1) {
+          return NextResponse.json(
+            { error: `Live payment amount mismatch: expected ₹${expectedMin}, received ₹${body.amountPaid}` },
+            { status: 400 }
+          )
+        }
+      }
+      gatewayMode = "live"
+    } else {
+      // Fake/Sandbox payment mode — allows seamless checkout testing without payment gateway hurdles
+      gatewayMode = "sandbox"
+    }
+
+    const finalPaidAmount = typeof body.amountPaid === "number" && body.amountPaid > 0
+      ? body.amountPaid
+      : Number(booking.total_price || 0)
+
     // Idempotent — a retried request (e.g. after a network blip on the
     // client) always gets back the PNR that's genuinely in the row,
     // never a freshly generated one.
     const currentStatus = (booking.status || "").toLowerCase()
 
-    // Idempotent — a retried request always gets back the PNR in the row
     if (currentStatus === CONFIRMED_STATUS.toLowerCase()) {
-      return NextResponse.json({ bookingId, status: CONFIRMED_STATUS, pnr: booking.pnr, alreadyConfirmed: true })
+      return NextResponse.json({
+        bookingId,
+        status: CONFIRMED_STATUS,
+        pnr: booking.pnr,
+        gatewayMode,
+        alreadyConfirmed: true,
+      })
     }
 
     if (currentStatus !== "draft") {
@@ -91,12 +158,12 @@ export async function POST(
           status: CONFIRMED_STATUS,
           hold_expires_at: null,
           pnr: finalPnr,
-          payment_method: body.paymentMethod,
-          paid_amount: body.amountPaid,
+          payment_method: `${body.paymentMethod || "card"}:${gatewayMode}`,
+          paid_amount: finalPaidAmount,
           paid_at: new Date().toISOString(),
         })
         .eq("id", bookingId)
-        .ilike("status", "draft") // guards against a race with a concurrent confirm
+        .eq("status", "draft") // guards against a race with a concurrent confirm
 
       if (!error) {
         lastError = null
@@ -111,7 +178,13 @@ export async function POST(
       return NextResponse.json({ error: lastError.message }, { status: 500 })
     }
 
-    return NextResponse.json({ bookingId, status: CONFIRMED_STATUS, pnr: finalPnr })
+    return NextResponse.json({
+      bookingId,
+      status: CONFIRMED_STATUS,
+      pnr: finalPnr,
+      gatewayMode,
+      amountPaid: finalPaidAmount,
+    })
   } catch (err) {
     console.error("CONFIRM BOOKING - SERVER ERROR:", err)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

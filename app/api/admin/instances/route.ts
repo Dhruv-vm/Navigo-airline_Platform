@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
-import { recordAdminAuditLog } from "@/lib/admin-auth"
+import { recordAdminAuditLog, getAdminFromRequest } from "@/lib/admin-auth"
 import { deriveFlightNumber } from "@/app/checkout/payment/bookingUtils"
 
 export async function GET(req: Request) {
+  const admin = getAdminFromRequest(req)
+  if (!admin) {
+    return NextResponse.json({ error: "Unauthorized administrative access" }, { status: 401 })
+  }
+
   try {
     const { searchParams } = new URL(req.url)
     const date = searchParams.get("date")
@@ -12,20 +17,35 @@ export async function GET(req: Request) {
 
     let query = supabase
       .from("flight_instances")
-      .select("*, flights(*)")
+      .select(`
+        id,
+        flight_id,
+        travel_date,
+        available_seats,
+        seats_economy,
+        seats_premium_economy,
+        seats_business,
+        seats_first,
+        tax_amount,
+        fee_amount,
+        gate,
+        status,
+        flights(airline, origin, destination, departure_time, arrival_time, aircraft, base_price)
+      `)
       .order("travel_date", { ascending: true })
 
     if (date) query = query.eq("travel_date", date)
     if (flightId) query = query.eq("flight_id", flightId)
 
-    const { data: instances, error } = await query
+    const [instancesRes, seatCountsRes] = await Promise.all([
+      query,
+      supabase.from("booking_seats").select("flight_instance_id"),
+    ])
 
-    if (error) throw error
+    if (instancesRes.error) throw instancesRes.error
 
-    // Fetch actual booked seats per instance
-    const { data: seatCounts } = await supabase
-      .from("booking_seats")
-      .select("flight_instance_id")
+    const instances = instancesRes.data
+    const seatCounts = seatCountsRes.data
 
     const bookingSeatCountMap = new Map<string, number>()
     for (const s of seatCounts || []) {
@@ -37,7 +57,7 @@ export async function GET(req: Request) {
     const todayStr = new Date().toISOString().split("T")[0]
 
     let list = (instances || []).map((inst) => {
-      const f = inst.flights
+      const f: any = Array.isArray(inst.flights) ? inst.flights[0] : inst.flights
       const flightNumber = deriveFlightNumber(f?.airline || "Navigo", inst.id)
       const totalSeats =
         (Number(inst.seats_economy) || 144) +
@@ -103,6 +123,11 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const admin = getAdminFromRequest(req)
+  if (!admin) {
+    return NextResponse.json({ error: "Unauthorized administrative access" }, { status: 401 })
+  }
+
   try {
     const body = await req.json()
     const { flightId, startDate, endDate, seatsEconomy, seatsPremium, seatsBusiness, seatsFirst, gate } = body
@@ -145,7 +170,7 @@ export async function POST(req: Request) {
     if (error) throw error
 
     recordAdminAuditLog(
-      { id: "adm-ops", name: "Flight Operations Admin", role: "FLIGHT_OPERATIONS" },
+      admin,
       "GENERATE_INSTANCES",
       `${flight.airline} (${flight.origin} → ${flight.destination}) across ${dates.length} dates`,
       { count: data?.length }
@@ -158,6 +183,11 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
+  const admin = getAdminFromRequest(req)
+  if (!admin) {
+    return NextResponse.json({ error: "Unauthorized administrative access" }, { status: 401 })
+  }
+
   try {
     const body = await req.json()
     const { id, status, gate, available_seats } = body

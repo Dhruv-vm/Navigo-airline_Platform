@@ -85,6 +85,11 @@ const airlineLogos: Record<string, string> = {
   "Akasa Air": "/airlines/akasa.png",
   "Emirates": "/airlines/emirates.png",
   "Qatar Airways": "/airlines/qatar.png",
+  "Singapore Airlines": "/airlines/singapore.png",
+  "Singapore": "/airlines/singapore.png",
+  "SIA": "/airlines/singapore.png",
+  "Navigo Airlines": "/logo.png",
+  "Navigo": "/logo.png",
 }
 
 function makeId() {
@@ -378,6 +383,7 @@ export default function PassengerDetailsPage() {
   }, [passengers])
 
   const handleContinue = async () => {
+    if (isSaving) return
     const allErrors: Record<string, FieldErrors> = {}
     let hasErrors = false
     for (const p of passengers) {

@@ -21,6 +21,11 @@ const airlineLogos: Record<string, string> = {
   "Akasa Air": "/airlines/akasa.png",
   "Emirates": "/airlines/emirates.png",
   "Qatar Airways": "/airlines/qatar.png",
+  "Singapore Airlines": "/airlines/singapore.png",
+  "Singapore": "/airlines/singapore.png",
+  "SIA": "/airlines/singapore.png",
+  "Navigo Airlines": "/logo.png",
+  "Navigo": "/logo.png",
 }
 
 function formatDate(dateStr: string) {
@@ -140,6 +145,7 @@ export default function DashboardPage() {
 
   // Load Biometric Profile
   useEffect(() => {
+    let cancelled = false
     const token = localStorage.getItem("token")
     if (!token) return
 
@@ -148,12 +154,16 @@ export default function DashboardPage() {
     })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (d?.hasProfile && d.profile) {
+        if (!cancelled && d?.hasProfile && d.profile) {
           setBiometricProfile(d.profile)
           setSmartBoardingActive(d.profile.isActive)
         }
       })
       .catch(() => {})
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const handleDeleteBiometricProfile = async () => {

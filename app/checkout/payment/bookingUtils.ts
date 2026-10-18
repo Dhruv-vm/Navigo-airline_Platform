@@ -39,7 +39,7 @@ export function deriveFlightNumber(airline: string, flightInstanceId: string): s
 // real test-card logic later if you want deterministic pass/fail per number.
 // ---------------------------------------------------------------------------
 
-export const SANDBOX_SUCCESS_RATE = 0.82
+export const SANDBOX_SUCCESS_RATE = 1.0
 
 const DECLINE_REASONS = [
   "Your bank declined this transaction.",
@@ -50,8 +50,5 @@ const DECLINE_REASONS = [
 ]
 
 export function simulateSandboxOutcome(): { success: boolean; reason?: string } {
-  const success = Math.random() < SANDBOX_SUCCESS_RATE
-  if (success) return { success: true }
-  const reason = DECLINE_REASONS[Math.floor(Math.random() * DECLINE_REASONS.length)]
-  return { success: false, reason }
+  return { success: true }
 }

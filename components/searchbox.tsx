@@ -13,10 +13,15 @@ import "react-date-range/dist/theme/default.css"
 // recognized DEL/BLR. This list is now the single source of truth for
 // both the picker dropdown and the city label.
 const AIRPORTS = [
-  { code: "DEL", city: "Delhi",     name: "Indira Gandhi Intl" },
-  { code: "BLR", city: "Bengaluru", name: "Kempegowda Intl" },
-  { code: "DXB", city: "Dubai",     name: "Dubai Intl" },
-  { code: "NRT", city: "Tokyo",     name: "Narita Intl" },
+  { code: "DEL", city: "Delhi",         name: "Indira Gandhi Intl" },
+  { code: "BLR", city: "Bengaluru",     name: "Kempegowda Intl" },
+  { code: "BOM", city: "Mumbai",        name: "Chhatrapati Shivaji Intl" },
+  { code: "MAA", city: "Chennai",       name: "Chennai Intl" },
+  { code: "HYD", city: "Hyderabad",     name: "Rajiv Gandhi Intl" },
+  { code: "CCU", city: "Kolkata",       name: "Netaji Subhas Chandra Bose Intl" },
+  { code: "DXB", city: "Dubai",         name: "Dubai Intl" },
+  { code: "SIN", city: "Singapore",     name: "Changi Airport" },
+  { code: "SFO", city: "San Francisco", name: "San Francisco Intl" },
 ]
 
 function airportFor(code: string) {
@@ -325,7 +330,9 @@ export default function SearchBox() {
           position: absolute;
           top: calc(100% + 8px);
           left: 0;
-          min-width: 240px;
+          min-width: 260px;
+          max-height: 320px;
+          overflow-y: auto;
           background: #0D1A2C;
           border: 1px solid rgba(212,175,55,0.25);
           border-radius: 14px;

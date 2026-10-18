@@ -11,11 +11,6 @@ export default function GateScannerPage() {
   const [gateNumber, setGateNumber] = useState("G4")
   const [recentBookings, setRecentBookings] = useState<any[]>([])
 
-  // Camera scanner state
-  const [cameraActive, setCameraActive] = useState(false)
-  const videoRef = useRef<HTMLVideoElement | null>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-
   useEffect(() => {
     // Fetch recent bookings to provide easy test tokens
     const token = localStorage.getItem("token")

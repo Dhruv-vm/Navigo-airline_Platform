@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed:flights": "npx tsx scripts/populate-flights.ts"
   },
   "dependencies": {
     "@radix-ui/react-select": "^2.3.7",

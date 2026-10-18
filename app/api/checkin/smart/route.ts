@@ -22,10 +22,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing required booking identifiers" }, { status: 400 })
     }
 
-    // 1. Fetch booking, passenger, instance
+    // 1. Fetch booking record
     const { data: booking, error: bErr } = await supabase
       .from("bookings")
-      .select("*")
+      .select("id, pnr, user_id, depart_flight_instance_id")
       .eq("id", bookingId)
       .single()
 
@@ -33,31 +33,37 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 })
     }
 
-    const { data: passengers } = await supabase
-      .from("booking_passengers")
-      .select("*")
-      .eq("booking_id", booking.id)
+    const targetInstanceId = flightInstanceId || booking.depart_flight_instance_id
 
-    const pax = (passengers || []).find((p) => p.id === passengerId) || passengers?.[0]
+    // Fetch passenger, instance, and seat in parallel
+    const [passengersRes, instanceRes, seatRowRes] = await Promise.all([
+      supabase
+        .from("booking_passengers")
+        .select("id, title, first_name, last_name")
+        .eq("booking_id", booking.id),
+      supabase
+        .from("flight_instances")
+        .select("id, travel_date, gate, flights(airline, origin, destination, departure_time)")
+        .eq("id", targetInstanceId)
+        .single(),
+      supabase
+        .from("booking_seats")
+        .select("seat_number")
+        .eq("booking_id", booking.id)
+        .eq("flight_instance_id", targetInstanceId)
+        .maybeSingle(),
+    ])
+
+    const passengers = passengersRes.data
+    const instance: any = instanceRes.data
+    const seatRow = seatRowRes.data
+
+    const pax = (passengers || []).find((p: any) => p.id === passengerId) || passengers?.[0]
     const passengerName = pax
       ? `${pax.title ? pax.title + " " : ""}${pax.first_name} ${pax.last_name}`.trim()
       : rawPaxName || "Traveler"
 
-    const targetInstanceId = flightInstanceId || booking.depart_flight_instance_id
-    const { data: instance } = await supabase
-      .from("flight_instances")
-      .select("*, flights(*)")
-      .eq("id", targetInstanceId)
-      .single()
-
-    const { data: seatRow } = await supabase
-      .from("booking_seats")
-      .select("seat_number")
-      .eq("booking_id", booking.id)
-      .eq("flight_instance_id", targetInstanceId)
-      .maybeSingle()
-
-    const flight = instance?.flights
+    const flight: any = Array.isArray(instance?.flights) ? instance?.flights[0] : instance?.flights
     const airline = flight?.airline || "Navigo Airlines"
     const flightNumber = deriveFlightNumber(airline, targetInstanceId)
     const seatNumber = seatRow?.seat_number || "Auto"

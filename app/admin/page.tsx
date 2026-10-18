@@ -3,6 +3,7 @@
 import { useState, useEffect, type MouseEvent as ReactMouseEvent } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
+import { getAdminAuthHeaders } from "@/lib/admin-client"
 
 // ── Ripple hook — same click-position ripple used on the flights/seats
 // pages, so primary buttons feel consistent across the whole app. ──────────
@@ -85,7 +86,7 @@ export default function AdminOverviewPage() {
   }, [])
 
   useEffect(() => {
-    fetch("/api/admin/stats")
+    fetch("/api/admin/stats", { headers: getAdminAuthHeaders() })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d) setStats(d)
@@ -287,9 +288,9 @@ export default function AdminOverviewPage() {
               <circle cx="320" cy="60" r="4" fill="#34D399" />
               <text x="325" y="65" fill="#34D399" fontSize="9" fontFamily="monospace">DXB</text>
 
-              {/* NRT */}
+              {/* SIN */}
               <circle cx="340" cy="120" r="4" fill="#F472B6" />
-              <text x="345" y="125" fill="#F472B6" fontSize="9" fontFamily="monospace">NRT</text>
+              <text x="345" y="125" fill="#F472B6" fontSize="9" fontFamily="monospace">SIN</text>
 
               {/* Animated Planes */}
               <circle cx="180" cy="85" r="3.5" fill="#FFFFFF" className="animate-ping" />
@@ -494,7 +495,7 @@ export default function AdminOverviewPage() {
                     <option>DEL → DXB (Emirates EK 512)</option>
                     <option>DEL → BLR (IndiGo 6E 204)</option>
                     <option>BOM → DEL (Air India AI 102)</option>
-                    <option>DEL → NRT (Japan Airlines JL 740)</option>
+                    <option>DEL → SIN (Singapore Airlines SQ 403)</option>
                   </select>
                   <IconChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import { getAdminAuthHeaders } from "@/lib/admin-client"
 
 export default function AdminBookingsPage() {
   const [bookings, setBookings] = useState<any[]>([])
@@ -13,7 +14,7 @@ export default function AdminBookingsPage() {
 
   const loadBookings = () => {
     setLoading(true)
-    fetch("/api/admin/bookings")
+    fetch("/api/admin/bookings", { headers: getAdminAuthHeaders() })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d?.bookings) setBookings(d.bookings)
@@ -31,7 +32,10 @@ export default function AdminBookingsPage() {
     try {
       const res = await fetch("/api/admin/bookings", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...getAdminAuthHeaders(),
+        },
         body: JSON.stringify({ id, status: newStatus }),
       })
       if (res.ok) {

@@ -52,6 +52,7 @@ const airlineLogos: Record<string, string> = {
   "Akasa Air": "/airlines/akasa.png",
   "Emirates": "/airlines/emirates.png",
   "Qatar Airways": "/airlines/qatar.png",
+  "Singapore Airlines": "/airlines/singapore.png",
 }
 
 function formatTime(timeStr?: string): string {

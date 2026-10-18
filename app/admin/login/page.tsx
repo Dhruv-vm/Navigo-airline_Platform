@@ -13,43 +13,60 @@ export default function AdminLoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
-    const user = verifyAdminCredentials(email, password)
-    if (user) {
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.token || !data.isAdmin) {
+        setLoading(false)
+        setError(data.error || "Invalid administrative credentials. Use the 1-Click Demo accounts below.")
+        return
+      }
+
       if (typeof window !== "undefined") {
-        localStorage.setItem("navigo_admin_session", JSON.stringify(user))
+        localStorage.setItem("navigo_admin_token", data.token)
+        localStorage.setItem("token", data.token)
+        localStorage.setItem("navigo_admin_session", JSON.stringify(data.admin || data.user))
       }
       setTimeout(() => {
         router.push("/admin")
-      }, 500)
-    } else {
+      }, 300)
+    } catch {
       setLoading(false)
-      setError("Invalid administrative credentials. Use the 1-Click Demo accounts below.")
+      setError("Network or authentication error. Please try again.")
     }
   }
 
-  const handleQuickLogin = (demoAccount: typeof DEMO_ADMIN_ACCOUNTS[0]) => {
+  const handleQuickLogin = async (demoAccount: typeof DEMO_ADMIN_ACCOUNTS[0]) => {
     setEmail(demoAccount.email)
     setPassword(demoAccount.password)
-    if (typeof window !== "undefined") {
-      localStorage.setItem(
-        "navigo_admin_session",
-        JSON.stringify({
-          id: demoAccount.id,
-          name: demoAccount.name,
-          email: demoAccount.email,
-          role: demoAccount.role,
-          badgeNumber: demoAccount.badgeNumber,
-          department: demoAccount.department,
-          lastActive: new Date().toISOString(),
-        })
-      )
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: demoAccount.email, password: demoAccount.password }),
+      })
+      const data = await res.json()
+      if (data?.token) {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("navigo_admin_token", data.token)
+          localStorage.setItem("token", data.token)
+          localStorage.setItem("navigo_admin_session", JSON.stringify(data.admin || data.user))
+        }
+        router.push("/admin")
+      }
+    } catch {
+      // Fallback
+      router.push("/admin")
     }
-    router.push("/admin")
   }
 
   return (

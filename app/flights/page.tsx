@@ -190,6 +190,11 @@ const airlineLogos: Record<string, string> = {
   "Emirates": "/airlines/emirates.png",
   "Qatar Airways": "/airlines/qatar.png",
   "Japan Airlines": "/airlines/jal.png",
+  "Singapore Airlines": "/airlines/singapore.png",
+  "Singapore": "/airlines/singapore.png",
+  "SIA": "/airlines/singapore.png",
+  "Navigo Airlines": "/logo.png",
+  "Navigo": "/logo.png",
 }
 
 export default function FlightsPage() {
@@ -393,7 +398,7 @@ function FlightsPageContent() {
     { value: 2, title: "2+ Stops", subtitle: "Multiple layovers", price: 5000, icon: "🔀" },
   ]
 
-  const airlinesList = ["Air India", "IndiGo", "Vistara", "Emirates", "Japan Airlines"]
+  const airlinesList = ["IndiGo", "Air India", "Vistara", "Singapore Airlines", "Emirates", "Qatar Airways", "Akasa Air"]
 
   const activeFlights = activeTab === "departure" ? departFlights : returnFlights
   const currentFiltered = applyFilters(activeFlights, activeDateStr)
@@ -453,7 +458,7 @@ function FlightsPageContent() {
 
     if (selectedReturnFlight) params.set("returnId", String(selectedReturnFlight.id))
 
-    const go = () => router.push(`/checkout?${params.toString()}`)
+    const go = () => router.push(`/checkout/passengers?${params.toString()}`)
 
     // Native View Transitions API — real cross-page slide/fade, no library.
     // Falls back to a plain navigation on browsers that don't support it
@@ -511,13 +516,13 @@ function FlightsPageContent() {
         <Navbar />
 
         {/* TOP BAR */}
-        <div className="max-w-7xl mx-auto px-6 pt-24 pb-6">
-          <div className="topbar-enter relative bg-gradient-to-r from-[#0D1A2C] via-[#0B1729] to-[#0D1A2C] border border-white/[0.08] rounded-2xl px-10 py-6 ticket-edge overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-24 pb-6">
+          <div className="topbar-enter relative bg-gradient-to-r from-[#0D1A2C] via-[#0B1729] to-[#0D1A2C] border border-white/[0.08] rounded-2xl px-4 sm:px-8 lg:px-10 py-4 sm:py-6 ticket-edge overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-blue-400 via-amber-400 to-amber-300" />
             <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-10 flex-wrap">
+              <div className="flex items-center gap-3 sm:gap-6 lg:gap-10 flex-wrap">
 
-                <div className="text-slate-400 text-sm pr-6 border-r border-white/10 flex items-center gap-1.5">
+                <div className="text-slate-400 text-sm pr-4 sm:pr-6 sm:border-r border-white/10 flex items-center gap-1.5">
                   <span className="text-amber-300">⇄</span> {mode}
                   {activeTab === "return" && mode === "roundtrip" && (
                     <span className="text-[10px] uppercase tracking-wide text-cyan-300 bg-cyan-400/10 border border-cyan-400/20 rounded-full px-2 py-0.5 ml-1">
@@ -526,33 +531,33 @@ function FlightsPageContent() {
                   )}
                 </div>
 
-                <div className="flex items-center gap-8 pr-8 border-r border-white/10">
+                <div className="flex items-center gap-4 sm:gap-8 pr-4 sm:pr-8 sm:border-r border-white/10">
                   <div>
                     <p className="text-xs text-slate-500">From</p>
-                    <p className="font-display text-4xl font-extrabold">{displayFrom}</p>
+                    <p className="font-display text-2xl sm:text-4xl font-extrabold">{displayFrom}</p>
                   </div>
                   <button
                     onClick={() => setSwapSpin((v) => !v)}
                     aria-label="Route indicator"
-                    className={`swap-circle w-14 h-14 flex items-center justify-center rounded-full bg-amber-400/10 border border-amber-400/20 text-amber-300 transition-transform duration-500 ${swapSpin ? "rotate-180" : "rotate-0"}`}
+                    className={`swap-circle w-10 h-10 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-amber-400/10 border border-amber-400/20 text-amber-300 transition-transform duration-500 ${swapSpin ? "rotate-180" : "rotate-0"}`}
                   >⇄</button>
                   <div>
                     <p className="text-xs text-slate-500">To</p>
-                    <p className="font-display text-4xl font-extrabold text-amber-300">{displayTo}</p>
+                    <p className="font-display text-2xl sm:text-4xl font-extrabold text-amber-300">{displayTo}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center pr-8 border-r border-white/10">
-                  <div className="pr-6">
+                <div className="flex items-center pr-4 sm:pr-8 sm:border-r border-white/10">
+                  <div className="pr-4 sm:pr-6">
                     <p className={`text-xs ${activeTab === "departure" ? "text-amber-300/80" : "text-slate-500"}`}>Depart</p>
-                    <p className="font-display text-lg font-bold">{formattedDepart.date}</p>
+                    <p className="font-display text-base sm:text-lg font-bold">{formattedDepart.date}</p>
                   </div>
                   {mode === "roundtrip" && returnDate && (
                     <>
-                      <div className="h-10 w-px bg-white/10 mx-4" />
-                      <div className="pl-6">
+                      <div className="h-10 w-px bg-white/10 mx-3 sm:mx-4" />
+                      <div className="pl-4 sm:pl-6">
                         <p className={`text-xs ${activeTab === "return" ? "text-amber-300/80" : "text-slate-500"}`}>Return</p>
-                        <p className="font-display text-lg font-bold">{formatDate(returnDate).date}</p>
+                        <p className="font-display text-base sm:text-lg font-bold">{formatDate(returnDate).date}</p>
                       </div>
                     </>
                   )}
@@ -560,7 +565,7 @@ function FlightsPageContent() {
 
                 <div>
                   <p className="text-xs text-slate-500">Passengers</p>
-                  <p className="font-display text-xl font-bold">{passengers}</p>
+                  <p className="font-display text-lg sm:text-xl font-bold">{passengers}</p>
                   <p className="text-xs text-cyan-300/80">Economy</p>
                 </div>
 
@@ -592,10 +597,10 @@ function FlightsPageContent() {
         </div>
 
         {/* MAIN */}
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-12 gap-6 pb-32">
+        <div className="max-w-7xl 2xl:max-w-[1440px] mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6 pb-32">
 
           {/* FILTERS */}
-          <div className="col-span-3 space-y-6">
+          <div className="col-span-1 lg:col-span-3 min-w-0 space-y-6">
             <div className="filters-slide-in relative bg-gradient-to-b from-[#0D1A2C] to-[#0A1424] p-6 rounded-2xl border border-white/[0.08] ticket-edge overflow-hidden">
 
               <div className="flex justify-between items-start mb-6">
@@ -768,7 +773,7 @@ function FlightsPageContent() {
           </div>
 
           {/* FLIGHTS */}
-          <div className="col-span-6 space-y-4">
+          <div className="col-span-1 lg:col-span-6 min-w-0 space-y-4">
             {mode === "roundtrip" && (
               <div className="inline-flex items-center gap-1 bg-white/[0.03] border border-white/[0.06] rounded-full p-1.5 mb-2">
                 <button onClick={() => switchTab("departure")}
@@ -793,7 +798,7 @@ function FlightsPageContent() {
             )}
 
             {/* SUMMARY CARDS */}
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {summaryCards.map((card, i) => (
                 <button key={card.key} type="button"
                   disabled={!card.flight}
@@ -828,6 +833,7 @@ function FlightsPageContent() {
             </div>
 
             {/* FLIGHT CARDS */}
+            <div id="flight-results" className="space-y-4">
             {flightsLoading ? (
               <div className="space-y-4">
                 {[0, 1, 2].map((i) => (
@@ -871,10 +877,11 @@ function FlightsPageContent() {
                 </button>
               </div>
             )}
+            </div>
           </div>
 
           {/* RIGHT — Price Insight */}
-          <div className="col-span-3 insights-fade-in">
+          <div className="col-span-1 lg:col-span-3 min-w-0 insights-fade-in">
             <PriceInsight flights={currentFiltered} />
           </div>
 

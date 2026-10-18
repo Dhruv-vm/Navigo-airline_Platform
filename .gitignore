@@ -20,12 +20,17 @@
 # freebuff tooling data (binary db — must never be scanned by Tailwind)
 /.freebuff/
 
+# local database cache
+/.data/
+
 # production
 /build
 
 # misc
 .DS_Store
 *.pem
+public/*.pdf
+public/boarding-pass-*.pdf
 
 # debug
 npm-debug.log*

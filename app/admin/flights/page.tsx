@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
+import { getAdminAuthHeaders } from "@/lib/admin-client"
 
 export default function AdminFlightsPage() {
   const [flights, setFlights] = useState<any[]>([])

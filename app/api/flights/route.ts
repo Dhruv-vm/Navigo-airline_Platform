@@ -5,14 +5,14 @@ import { computeDynamicPrice } from '@/lib/pricing'
 // ✅ FIXED — departure_time / arrival_time are "HH:MM:SS" strings, NOT ISO datetimes.
 // Parsing them as `new Date("06:00:00")` gives Invalid Date → NaN duration.
 // We now compute duration by splitting on ":" and doing pure arithmetic.
-function parsTimeToMinutes(timeStr: string): number {
+function parseTimeToMinutes(timeStr: string): number {
   const [h, m] = timeStr.split(":").map(Number)
   return h * 60 + (m || 0)
 }
 
 function getDurationMinutes(flight: any): number {
-  const dep = parsTimeToMinutes(flight.departure_time || "00:00")
-  let arr = parsTimeToMinutes(flight.arrival_time || "00:00")
+  const dep = parseTimeToMinutes(flight.departure_time || "00:00")
+  let arr = parseTimeToMinutes(flight.arrival_time || "00:00")
   if (arr < dep) arr += 24 * 60
   return arr - dep
 }
@@ -21,6 +21,25 @@ function formatDuration(minutes: number): string {
   const h = Math.floor(minutes / 60)
   const m = minutes % 60
   return m > 0 ? `${h}h ${m}m` : `${h}h`
+}
+
+function deriveFlightNumber(airline: string, id: string): string {
+  let hash = 0
+  for (let i = 0; i < (id || "").length; i++) {
+    hash = (hash << 5) - hash + id.charCodeAt(i)
+    hash |= 0
+  }
+  const num = 100 + (Math.abs(hash) % 899)
+  const a = (airline || "").toLowerCase()
+  if (a.includes("indigo")) return `6E-${num}`
+  if (a.includes("air india")) return `AI-${num}`
+  if (a.includes("vistara")) return `UK-${num}`
+  if (a.includes("emirates")) return `EK-${num}`
+  if (a.includes("akasa")) return `QP-${num}`
+  if (a.includes("qatar")) return `QR-${num}`
+  if (a.includes("japan")) return `JL-${num}`
+  if (a.includes("singapore")) return `SQ-${num}`
+  return `NVG-${num}`
 }
 
 // GET flights
@@ -48,7 +67,17 @@ export async function GET(req: Request) {
   let query = supabase
     .from("flights")
     .select(`
-      *,
+      id,
+      airline,
+      origin,
+      destination,
+      departure_time,
+      arrival_time,
+      duration,
+      aircraft,
+      base_price,
+      stops,
+      stop_airport,
       flight_instances (
         id,
         travel_date,
@@ -58,7 +87,8 @@ export async function GET(req: Request) {
         seats_business,
         seats_first,
         tax_amount,
-        fee_amount
+        fee_amount,
+        gate
       )
     `)
 
@@ -86,10 +116,10 @@ export async function GET(req: Request) {
       if (!instance && date) {
         // Auto-seed flight_instance row so that bookings and seat maps have a valid UUID foreign key
         try {
-          const econ = Number(flight.seats_economy) || 144
-          const prem = Number(flight.seats_premium_economy) || 18
-          const biz = Number(flight.seats_business) || 12
-          const first = Number(flight.seats_first) || 6
+          const econ = 144
+          const prem = 18
+          const biz = 12
+          const first = 6
           const total = econ + prem + biz + first
           const { data: newInst } = await supabase
             .from("flight_instances")
@@ -104,7 +134,6 @@ export async function GET(req: Request) {
               tax_amount: Math.round((Number(flight.base_price) || 4500) * 0.12),
               fee_amount: 450,
               gate: `G${(Math.abs(String(flight.id).charCodeAt(0) || 1) % 20) + 1}`,
-              status: "SCHEDULED",
             })
             .select()
             .maybeSingle()
@@ -134,9 +163,11 @@ export async function GET(req: Request) {
       const final_price = pricing.finalPrice
       const durationMins = getDurationMinutes(flight)
       const duration = formatDuration(durationMins)
+      const flightNumber = (flight as any).flight_number || deriveFlightNumber(flight.airline, flight.id)
 
       return {
         ...flight,
+        flight_number: flightNumber,
         flight_instance_id: instance?.id || flight.id,
         travel_date: travelDateStr,
         available_seats: availableSeats,
@@ -146,6 +177,8 @@ export async function GET(req: Request) {
         seats_first: instance?.seats_first ?? 0,
         tax_amount: instance?.tax_amount ?? Math.round(final_price * 0.12),
         fee_amount: instance?.fee_amount ?? Math.round(final_price * 0.07),
+        gate: instance?.gate || "G1",
+        status: "SCHEDULED",
         final_price,
         duration,
         duration_minutes: durationMins,

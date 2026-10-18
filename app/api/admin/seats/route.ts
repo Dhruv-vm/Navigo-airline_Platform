@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
-import { recordAdminAuditLog } from "@/lib/admin-auth"
+import { recordAdminAuditLog, getAdminFromRequest } from "@/lib/admin-auth"
 import { getBlockedSeatsForInstance, setSeatBlockState } from "@/lib/seats"
 
 export async function GET(req: Request) {
+  const admin = getAdminFromRequest(req)
+  if (!admin) {
+    return NextResponse.json({ error: "Unauthorized administrative access" }, { status: 401 })
+  }
+
   try {
     const { searchParams } = new URL(req.url)
     const flightInstanceId = searchParams.get("flightInstanceId")
@@ -71,6 +76,11 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const admin = getAdminFromRequest(req)
+  if (!admin) {
+    return NextResponse.json({ error: "Unauthorized administrative access" }, { status: 401 })
+  }
+
   try {
     const body = await req.json()
     const { flightInstanceId, seatNumber, action } = body // action: "BLOCK" | "UNBLOCK"
@@ -83,7 +93,7 @@ export async function POST(req: Request) {
     const blockedSeats = setSeatBlockState(flightInstanceId, seatNumber, isBlock)
 
     recordAdminAuditLog(
-      { id: "adm-ops", name: "Seat Controller", role: "FLIGHT_OPERATIONS" },
+      admin,
       isBlock ? "BLOCK_SEAT" : "UNBLOCK_SEAT",
       `Seat ${seatNumber} (Instance: ${flightInstanceId})`
     )

@@ -1,3 +1,5 @@
+import jwt from "jsonwebtoken"
+
 export type AdminRole =
   | "SUPER_ADMIN"
   | "FLIGHT_OPERATIONS"
@@ -77,6 +79,79 @@ export function verifyAdminCredentials(email: string, pass: string) {
     department: account.department,
     lastActive: new Date().toISOString(),
   }
+}
+
+/**
+ * Strictly validates admin authorization from an incoming API request.
+ * Requires a cryptographically verified Admin JWT in the Authorization Bearer header.
+ * Rejects unauthenticated, expired, forged, or regular-user tokens.
+ * Client-controlled headers (x-admin-role, referer) are strictly disallowed.
+ */
+export function getAdminFromRequest(req: Request): {
+  id: string
+  name: string
+  email: string
+  role: AdminRole
+} | null {
+  const authHeader = req.headers.get("authorization")
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null
+  }
+
+  const token = authHeader.slice("Bearer ".length).trim()
+  if (!token) return null
+
+  try {
+    const secret = process.env.JWT_SECRET || "navigo_jwt_secret_token_2026"
+    const decoded = jwt.verify(token, secret) as any
+
+    // Must be an authentic admin identity:
+    // 1. Must have isAdmin === true
+    // 2. Must possess an authentic recognized AdminRole
+    if (!decoded || decoded.isAdmin !== true || !decoded.role) {
+      return null
+    }
+
+    const rawRole = String(decoded.role)
+    const validRole: AdminRole | null =
+      rawRole in ADMIN_ROLES_META
+        ? (rawRole as AdminRole)
+        : (rawRole.toUpperCase().replace(/\s+/g, "_") as AdminRole) in ADMIN_ROLES_META
+        ? (rawRole.toUpperCase().replace(/\s+/g, "_") as AdminRole)
+        : null
+
+    if (!validRole) {
+      return null
+    }
+
+    return {
+      id: decoded.userId || decoded.id || "adm-jwt",
+      name: decoded.name || "Command Staff",
+      email: decoded.email || "admin@navigo.app",
+      role: validRole,
+    }
+  } catch {
+    // Malformed, invalid, or expired JWT
+    return null
+  }
+}
+
+/**
+ * Signs a genuine, cryptographically verifiable Admin JWT.
+ */
+export function signAdminToken(admin: { id: string; email: string; role: AdminRole; name?: string }): string {
+  const secret = process.env.JWT_SECRET || "navigo_jwt_secret_token_2026"
+  return jwt.sign(
+    {
+      userId: admin.id,
+      email: admin.email,
+      role: admin.role,
+      name: admin.name || "Command Staff",
+      isAdmin: true,
+    },
+    secret,
+    { expiresIn: "7d" }
+  )
 }
 
 export interface AdminAuditLog {

@@ -14,7 +14,7 @@ export async function GET(req: Request) {
 
   const { data, error } = await supabase
     .from("saved_passengers")
-    .select("*")
+    .select("id, title, first_name, middle_name, last_name, date_of_birth, gender, nationality, frequent_flyer, updated_at")
     .eq("user_id", user.userId)
     .order("updated_at", { ascending: false })
 

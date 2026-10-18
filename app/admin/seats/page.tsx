@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import { getAdminAuthHeaders } from "@/lib/admin-client"
 
 // ── Thin-stroke icons — replaces the emoji glyphs (✈️ 🔒 💺 ✓) so this
 // console reads as the same product as the rest of the admin panel. ───────
@@ -30,7 +31,9 @@ export default function AdminSeatsPage() {
 
   // Load instances
   useEffect(() => {
-    fetch("/api/admin/instances")
+    fetch("/api/admin/instances", {
+      headers: getAdminAuthHeaders(),
+    })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d?.instances && d.instances.length > 0) {
@@ -45,7 +48,9 @@ export default function AdminSeatsPage() {
   // Load seat map for instance
   const loadSeatMap = (instanceId: string) => {
     if (!instanceId) return
-    fetch(`/api/admin/seats?flightInstanceId=${instanceId}`)
+    fetch(`/api/admin/seats?flightInstanceId=${instanceId}`, {
+      headers: getAdminAuthHeaders(),
+    })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d) setSeatData(d)
@@ -62,7 +67,7 @@ export default function AdminSeatsPage() {
     try {
       const res = await fetch("/api/admin/seats", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAdminAuthHeaders() },
         body: JSON.stringify({
           flightInstanceId: selectedInstanceId,
           seatNumber,

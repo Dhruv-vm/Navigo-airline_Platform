@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import Navbar from "@/components/navbar"
 import SearchBox from "@/components/searchbox"
 import { computeDynamicPrice } from "@/lib/pricing"
@@ -30,7 +31,7 @@ const DEFAULT_ROUTES_BASE = [
   { from: "BOM", to: "DEL", label: "Mumbai → Delhi",    basePrice: 3800, tag: "Price Drop", tagType: "drop" as const },
   { from: "BLR", to: "HYD", label: "Bangalore → Hyd",  basePrice: 2200, tag: "Quick Hop",  tagType: "quick" as const },
   { from: "DEL", to: "DXB", label: "Delhi → Dubai",     basePrice: 29000, tag: "International", tagType: "top" as const },
-  { from: "DEL", to: "NRT", label: "Delhi → Tokyo",     basePrice: 48000, tag: "Top Corridor", tagType: "top" as const },
+  { from: "DEL", to: "SIN", label: "Delhi → Singapore", basePrice: 18500, tag: "Top Corridor", tagType: "top" as const },
   { from: "MAA", to: "BOM", label: "Chennai → Mumbai",  basePrice: 2800, tag: null, tagType: undefined },
 ]
 
@@ -163,21 +164,20 @@ export default function Home() {
         return
       }
       try {
-        const res = await fetch("/api/auth/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        if (!res.ok) {
+        const [authRes, bookingsRes] = await Promise.all([
+          fetch("/api/auth/me", { headers: { Authorization: `Bearer ${token}` } }),
+          fetch("/api/bookings", { headers: { Authorization: `Bearer ${token}` } }).catch(() => null),
+        ])
+
+        if (!authRes.ok) {
           localStorage.removeItem("token")
           router.replace("/login")
           return
         }
 
-        // Fetch bookings to dynamically score and rank popular routes
-        try {
-          const bookingsRes = await fetch("/api/bookings", {
-            headers: { Authorization: `Bearer ${token}` },
-          })
-          if (bookingsRes.ok) {
+        // Process live booking popularity ranking
+        if (bookingsRes && bookingsRes.ok) {
+          try {
             const bookingsData = await bookingsRes.json()
             const bookingsList = Array.isArray(bookingsData)
               ? bookingsData
@@ -209,9 +209,9 @@ export default function Home() {
             // Sort: routes with bookings first
             updatedRoutes.sort((a, b) => (b.bookingCount || 0) - (a.bookingCount || 0))
             setRoutes(updatedRoutes)
+          } catch (bErr) {
+            console.warn("Could not fetch bookings for route analytics:", bErr)
           }
-        } catch (bErr) {
-          console.warn("Could not fetch bookings for route analytics:", bErr)
         }
 
         setLoading(false)
@@ -626,7 +626,14 @@ export default function Home() {
 
         {/* ── BACKGROUND ── */}
         <div className="absolute inset-0 z-0 pointer-events-none">
-          <img src="/hero-bg.png" alt="background" className="w-full h-full object-cover" />
+          <Image
+            src="/hero-bg.png"
+            alt="background"
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover"
+          />
           <div className="absolute inset-0 bg-gradient-to-r from-[#020617]/90 via-[#020617]/70 to-transparent" />
           <div className="absolute inset-0 bg-[#020617]/30" />
         </div>

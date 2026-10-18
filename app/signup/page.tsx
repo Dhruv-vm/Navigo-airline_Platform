@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 
 export default function SignupPage() {
   const router = useRouter()
@@ -17,6 +18,7 @@ export default function SignupPage() {
   const [error, setError] = useState("")
 
   const handleSignup = async () => {
+    if (loading) return
     setError("")
 
     if (password !== confirm) {
@@ -63,10 +65,13 @@ export default function SignupPage() {
   return (
     <div className="relative min-h-screen text-white overflow-hidden font-sans">
       {/* BACKGROUND */}
-      <img
+      <Image
         src="/login-bg.png"
         alt=""
-        className="absolute inset-0 w-full h-full object-cover object-center"
+        fill
+        priority
+        sizes="100vw"
+        className="object-cover object-center pointer-events-none"
       />
 
       {/* OVERLAY */}

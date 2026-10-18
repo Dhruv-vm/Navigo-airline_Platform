@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import { getAdminAuthHeaders } from "@/lib/admin-client"
 
 export default function AdminGatesPage() {
   const [selectedGate, setSelectedGate] = useState("Gate A12 (DEL)")
@@ -14,7 +15,9 @@ export default function AdminGatesPage() {
   const [confirmedBookings, setConfirmedBookings] = useState<any[]>([])
 
   useEffect(() => {
-    fetch("/api/admin/bookings")
+    fetch("/api/admin/bookings", {
+      headers: getAdminAuthHeaders(),
+    })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d?.bookings) setConfirmedBookings(d.bookings)
@@ -33,7 +36,7 @@ export default function AdminGatesPage() {
     try {
       const res = await fetch("/api/gate/verify", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAdminAuthHeaders() },
         body: JSON.stringify({
           qrToken: targetToken.trim(),
           token: targetToken.trim(),

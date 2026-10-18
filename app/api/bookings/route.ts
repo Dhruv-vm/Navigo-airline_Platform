@@ -85,7 +85,7 @@ export async function POST(req: Request) {
       const { data: anyInst } = await supabase
         .from("flight_instances")
         .select("id")
-        .order("created_at", { ascending: false })
+        .order("travel_date", { ascending: false })
         .limit(1)
         .maybeSingle()
       if (anyInst) {

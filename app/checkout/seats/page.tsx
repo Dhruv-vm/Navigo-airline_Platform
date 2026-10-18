@@ -119,7 +119,12 @@ const airlineLogos: Record<string, string> = {
   "Akasa Air": "/airlines/akasa.png",
   "Emirates": "/airlines/emirates.png",
   "Qatar Airways": "/airlines/qatar.png",
-  "Japan Airlines": "/airlines/japanairlines.png",
+  "Japan Airlines": "/airlines/jal.png",
+  "Singapore Airlines": "/airlines/singapore.png",
+  "Singapore": "/airlines/singapore.png",
+  "SIA": "/airlines/singapore.png",
+  "Navigo Airlines": "/logo.png",
+  "Navigo": "/logo.png",
 }
 
 // ---------------------------------------------------------------------------
@@ -623,7 +628,11 @@ export default function SeatSelectionPage() {
       return
     }
     try {
-      await fetch(`/api/bookings/${selection.bookingId}/seats`, { method: "DELETE" })
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+      await fetch(`/api/bookings/${selection.bookingId}/seats`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
     } catch (err) {
       console.warn("Failed to release held seats before editing flight:", err)
       // Navigate anyway — worst case any hold expires on its own; we don't
@@ -633,7 +642,7 @@ export default function SeatSelectionPage() {
   }
 
   async function handleContinue() {
-    if (!selection?.bookingId || !allSeatsAssigned) return
+    if (submitting || !selection?.bookingId || !allSeatsAssigned) return
     setSubmitting(true)
     setSubmitError(null)
 
@@ -660,9 +669,13 @@ export default function SeatSelectionPage() {
         return
       }
 
+      const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
       const res = await fetch(`/api/bookings/${selection.bookingId}/seats`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(payload),
       })
       const data = await res.json()
@@ -1599,6 +1612,8 @@ function BusinessSeatPod({
       <img
         src="/seats/business-class-seat-pod.png"
         alt=""
+        loading="lazy"
+        decoding="async"
         draggable={false}
         className={`relative w-full h-full object-contain select-none transition-all duration-200 ${
           !taken ? "group-hover:brightness-110" : ""
@@ -1686,6 +1701,8 @@ function IllustratedSeatPod({
       <img
         src="/seats/first-class-seat-pod.png"
         alt=""
+        loading="lazy"
+        decoding="async"
         draggable={false}
         className={`relative w-full h-full object-contain select-none transition-all duration-200 ${
           !taken ? "group-hover:brightness-110" : ""

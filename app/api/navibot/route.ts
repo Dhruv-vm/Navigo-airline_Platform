@@ -10,6 +10,25 @@ interface ChatMessage {
   content: string
 }
 
+function deriveFlightNumber(airline: string, id: string): string {
+  let hash = 0
+  for (let i = 0; i < (id || "").length; i++) {
+    hash = (hash << 5) - hash + id.charCodeAt(i)
+    hash |= 0
+  }
+  const num = 100 + (Math.abs(hash) % 899)
+  const a = (airline || "").toLowerCase()
+  if (a.includes("indigo")) return `6E-${num}`
+  if (a.includes("air india")) return `AI-${num}`
+  if (a.includes("vistara")) return `UK-${num}`
+  if (a.includes("emirates")) return `EK-${num}`
+  if (a.includes("akasa")) return `QP-${num}`
+  if (a.includes("qatar")) return `QR-${num}`
+  if (a.includes("japan")) return `JL-${num}`
+  if (a.includes("singapore")) return `SQ-${num}`
+  return `NVG-${num}`
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json()
@@ -54,17 +73,21 @@ export async function POST(req: Request) {
       const { data: bData } = await supabase
         .from("bookings")
         .select(`
-          *,
-          flight_instances (
+          id,
+          pnr,
+          status,
+          paid_amount,
+          total_price,
+          flight_instances:depart_flight_instance_id (
             travel_date,
-            departure_time,
-            arrival_time,
-            status,
+            gate,
             flights (
-              flight_number,
+              id,
               airline,
               origin,
               destination,
+              departure_time,
+              arrival_time,
               duration,
               aircraft
             )
@@ -74,27 +97,36 @@ export async function POST(req: Request) {
         .order("created_at", { ascending: false })
 
       if (bData) {
-        userBookings = bData.map((b: any) => ({
-          id: b.id,
-          pnr: b.pnr,
-          flightNumber: b.flight_instances?.flights?.flight_number || "NVG-302",
-          airline: b.flight_instances?.flights?.airline || "Navigo Airlines",
-          origin: b.flight_instances?.flights?.origin || "DEL",
-          destination: b.flight_instances?.flights?.destination || "BLR",
-          travelDate: b.flight_instances?.travel_date || "2026-08-25",
-          departureTime: b.flight_instances?.departure_time || "06:00:00",
-          arrivalTime: b.flight_instances?.arrival_time || "08:30:00",
-          seat: b.seat || b.seat_number || "12A",
-          status: b.status || "CONFIRMED",
-          paidAmount: b.paid_amount || b.total_price || 5200,
-          gate: "G4",
-        }))
+        userBookings = bData.map((b: any) => {
+          const fl = b.flight_instances?.flights
+          const flNum = fl?.airline ? deriveFlightNumber(fl.airline, fl.id || b.id) : "NVG-302"
+          return {
+            id: b.id,
+            pnr: b.pnr,
+            flightNumber: flNum,
+            airline: fl?.airline || "Navigo Airlines",
+            origin: fl?.origin || "DEL",
+            destination: fl?.destination || "BLR",
+            travelDate: b.flight_instances?.travel_date || "2026-08-25",
+            departureTime: fl?.departure_time || "06:00:00",
+            arrivalTime: fl?.arrival_time || "08:30:00",
+            seat: b.seat || b.seat_number || "12A",
+            status: b.status || "CONFIRMED",
+            paidAmount: b.paid_amount || b.total_price || 5200,
+            gate: b.flight_instances?.gate || "G4",
+          }
+        })
       }
     }
 
     // 2. Fetch live flight schedules for search inquiries
-    const { data: flightsData } = await supabase.from("flights").select("*")
-    const masterFlights = flightsData || []
+    const { data: flightsData } = await supabase
+      .from("flights")
+      .select("id, airline, origin, destination, departure_time, arrival_time, duration, aircraft, base_price")
+    const masterFlights = (flightsData || []).map((f: any) => ({
+      ...f,
+      flight_number: deriveFlightNumber(f.airline, f.id),
+    }))
 
     // 3. Process Intent Detection & Response Generation
 

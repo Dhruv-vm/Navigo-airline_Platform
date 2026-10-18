@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { getAdminAuthHeaders } from "@/lib/admin-client"
 
 /* ── motion-safe count-up ──────────────────────────────────────────── */
 function usePrefersReducedMotion() {
@@ -143,7 +144,7 @@ export default function AdminRevenuePage() {
   }, [])
 
   useEffect(() => {
-    fetch("/api/admin/stats")
+    fetch("/api/admin/stats", { headers: getAdminAuthHeaders() })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d) setStats(d)

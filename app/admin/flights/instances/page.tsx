@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
+import { getAdminAuthHeaders } from "@/lib/admin-client"
 
 export default function AdminFlightInstancesPage() {
   const [instances, setInstances] = useState<any[]>([])
@@ -29,8 +30,8 @@ export default function AdminFlightInstancesPage() {
   const loadData = () => {
     setLoading(true)
     Promise.all([
-      fetch("/api/admin/instances").then((r) => (r.ok ? r.json() : null)),
-      fetch("/api/admin/flights").then((r) => (r.ok ? r.json() : null)),
+      fetch("/api/admin/instances", { headers: getAdminAuthHeaders() }).then((r) => (r.ok ? r.json() : null)),
+      fetch("/api/admin/flights", { headers: getAdminAuthHeaders() }).then((r) => (r.ok ? r.json() : null)),
     ])
       .then(([iData, fData]) => {
         if (iData?.instances) setInstances(iData.instances)
@@ -53,7 +54,7 @@ export default function AdminFlightInstancesPage() {
     try {
       const res = await fetch("/api/admin/instances", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAdminAuthHeaders() },
         body: JSON.stringify({ id, status: newStatus }),
       })
       if (res.ok) {
@@ -72,7 +73,7 @@ export default function AdminFlightInstancesPage() {
     try {
       const res = await fetch("/api/admin/instances", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAdminAuthHeaders() },
         body: JSON.stringify(genForm),
       })
       if (res.ok) {

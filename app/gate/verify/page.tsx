@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
 import { biometricProvider } from "@/lib/biometric/provider"
 import type { FaceDetectionResult } from "@/lib/biometric/faceDetection"
+import { getAdminAuthHeaders } from "@/lib/admin-client"
 
 export default function GateVerificationPage() {
   return (
@@ -50,6 +51,13 @@ function GateVerificationContent() {
     consecutiveValidFrames.current = 0
   }, [])
 
+  // Ensure camera streams and hardware resources are cleanly released upon leaving the page
+  useEffect(() => {
+    return () => {
+      cleanupGateCamera()
+    }
+  }, [cleanupGateCamera])
+
   // Auto-verify if token is present in URL
   useEffect(() => {
     if (tokenFromUrl) {
@@ -60,7 +68,9 @@ function GateVerificationContent() {
 
   // Fetch recent bookings for quick testing by staff
   useEffect(() => {
-    fetch("/api/admin/bookings")
+    fetch("/api/admin/bookings", {
+      headers: getAdminAuthHeaders(),
+    })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.bookings) {
@@ -82,7 +92,7 @@ function GateVerificationContent() {
     try {
       const res = await fetch("/api/gate/verify", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAdminAuthHeaders() },
         body: JSON.stringify({
           qrToken: cleanToken,
           scannedGate: gateNumber,

@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
+import { getAdminFromRequest } from "@/lib/admin-auth"
 
 export async function GET(req: Request) {
+  const admin = getAdminFromRequest(req)
+  if (!admin) {
+    return NextResponse.json({ error: "Unauthorized administrative access" }, { status: 401 })
+  }
+
   try {
     const { searchParams } = new URL(req.url)
     const search = searchParams.get("q")
@@ -9,20 +15,23 @@ export async function GET(req: Request) {
     let passengers: any[] = []
     const { data: pData, error } = await supabase
       .from("booking_passengers")
-      .select("*, bookings(*)")
+      .select("id, booking_id, title, first_name, last_name, email, mobile, gender, date_of_birth, nationality, frequent_flyer, passenger_type, created_at, bookings(id, pnr, status, contact_email, contact_mobile, paid_amount, total_price)")
       .order("created_at", { ascending: false })
 
     if (error || !pData) {
       console.warn("ADMIN PASSENGERS - Relation join failed, falling back to separate queries:", error?.message)
       const { data: rawPax } = await supabase
         .from("booking_passengers")
-        .select("*")
+        .select("id, booking_id, title, first_name, last_name, email, mobile, gender, date_of_birth, nationality, frequent_flyer, passenger_type, created_at")
         .order("created_at", { ascending: false })
 
       const bIds = Array.from(new Set((rawPax || []).map((p: any) => p.booking_id).filter(Boolean)))
       let bMap = new Map<string, any>()
       if (bIds.length > 0) {
-        const { data: bList } = await supabase.from("bookings").select("*").in("id", bIds)
+        const { data: bList } = await supabase
+          .from("bookings")
+          .select("id, pnr, status, contact_email, contact_mobile, paid_amount, total_price")
+          .in("id", bIds)
         if (bList) bMap = new Map(bList.map((b) => [b.id, b]))
       }
 
@@ -34,8 +43,8 @@ export async function GET(req: Request) {
       passengers = pData
     }
 
-    let list = (passengers || []).map((p) => {
-      const b = p.bookings
+    let list = (passengers || []).map((p: any) => {
+      const b: any = p.bookings
       const fullName = `${p.title ? p.title + " " : ""}${p.first_name || ""} ${p.last_name || ""}`.trim()
 
       return {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
+import { getUserFromRequest } from "@/lib/auth"
 
 // POST /api/bookings/[bookingId]/seats
 //
@@ -123,13 +124,18 @@ export async function POST(
 
     const { data: booking, error: bookingFetchError } = await supabase
       .from("bookings")
-      .select("id, status")
+      .select("id, status, user_id")
       .eq("id", bookingId)
       .single()
 
     if (bookingFetchError || !booking) {
       console.error("SEAT SAVE - BOOKING LOOKUP ERROR:", bookingFetchError)
       return NextResponse.json({ error: "Booking not found" }, { status: 404 })
+    }
+
+    const user = getUserFromRequest(req)
+    if (booking.user_id && (!user || user.userId !== booking.user_id)) {
+      return NextResponse.json({ error: "Unauthorized access to this booking" }, { status: 403 })
     }
 
     if (booking.status !== "draft") {
@@ -387,6 +393,17 @@ export async function GET(
       return NextResponse.json({ error: "Missing booking id" }, { status: 400 })
     }
 
+    const { data: booking } = await supabase
+      .from("bookings")
+      .select("id, user_id")
+      .eq("id", bookingId)
+      .maybeSingle()
+
+    const user = getUserFromRequest(req)
+    if (booking?.user_id && (!user || user.userId !== booking.user_id)) {
+      return NextResponse.json({ error: "Unauthorized access to this booking" }, { status: 403 })
+    }
+
     const { data, error } = await supabase
       .from("booking_seats")
       .select("flight_instance_id, passenger_id, seat_number, cabin_class")
@@ -433,6 +450,17 @@ export async function DELETE(
     const { bookingId } = await params
     if (!bookingId) {
       return NextResponse.json({ error: "Missing booking id" }, { status: 400 })
+    }
+
+    const { data: booking } = await supabase
+      .from("bookings")
+      .select("id, user_id")
+      .eq("id", bookingId)
+      .maybeSingle()
+
+    const user = getUserFromRequest(req)
+    if (booking?.user_id && (!user || user.userId !== booking.user_id)) {
+      return NextResponse.json({ error: "Unauthorized access to this booking" }, { status: 403 })
     }
 
     const { data: ownSeats, error: ownSeatsError } = await supabase

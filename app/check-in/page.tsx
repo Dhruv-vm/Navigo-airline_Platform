@@ -31,6 +31,7 @@ function CheckInContent() {
   const [upcomingTrips, setUpcomingTrips] = useState<any[]>([])
 
   useEffect(() => {
+    let cancelled = false
     const token = localStorage.getItem("token")
     if (!token) return
 
@@ -39,6 +40,7 @@ function CheckInContent() {
     })
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
+        if (cancelled) return
         const list = Array.isArray(data) ? data : data?.bookings ?? []
         const now = Date.now()
         const upcoming = list.filter(
@@ -47,6 +49,10 @@ function CheckInContent() {
         setUpcomingTrips(upcoming)
       })
       .catch(() => {})
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const handleLaunchCheckIn = (pnrToUse?: string) => {

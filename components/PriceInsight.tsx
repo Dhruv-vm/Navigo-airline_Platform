@@ -203,6 +203,15 @@ function ScoreGauge({ score, color }: { score: number; color: string }) {
 // --- trend chart -------------------------------------------------------
 
 function TrendChart({ points }: { points: { label: string; price: number }[] }) {
+  const [drawn, setDrawn] = useState(false)
+  const pointsKey = points.map((p) => p.price).join(",")
+
+  useEffect(() => {
+    setDrawn(false)
+    const t = requestAnimationFrame(() => requestAnimationFrame(() => setDrawn(true)))
+    return () => cancelAnimationFrame(t)
+  }, [pointsKey])
+
   if (!points.length) return null
 
   const width = 280
@@ -225,13 +234,6 @@ function TrendChart({ points }: { points: { label: string; price: number }[] }) 
     .join(" ")
 
   const areaPath = `${linePath} L ${coords[coords.length - 1].x} ${height} L ${coords[0].x} ${height} Z`
-
-  const [drawn, setDrawn] = useState(false)
-  useEffect(() => {
-    setDrawn(false)
-    const t = requestAnimationFrame(() => requestAnimationFrame(() => setDrawn(true)))
-    return () => cancelAnimationFrame(t)
-  }, [points.map((p) => p.price).join(",")])
 
   return (
     <svg viewBox={`0 0 ${width} ${height + 24}`} className="w-full h-auto">

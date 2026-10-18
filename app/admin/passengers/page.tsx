@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import { getAdminAuthHeaders } from "@/lib/admin-client"
 
 export default function AdminPassengersPage() {
   const [passengers, setPassengers] = useState<any[]>([])
@@ -11,7 +12,7 @@ export default function AdminPassengersPage() {
 
   const loadPassengers = () => {
     setLoading(true)
-    fetch("/api/admin/passengers")
+    fetch("/api/admin/passengers", { headers: getAdminAuthHeaders() })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d?.passengers) setPassengers(d.passengers)

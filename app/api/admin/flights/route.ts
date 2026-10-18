@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server"
 import { supabase } from "@/lib/supabase"
-import { recordAdminAuditLog } from "@/lib/admin-auth"
+import { recordAdminAuditLog, getAdminFromRequest } from "@/lib/admin-auth"
 
 export async function GET(req: Request) {
+  const admin = getAdminFromRequest(req)
+  if (!admin) {
+    return NextResponse.json({ error: "Unauthorized administrative access" }, { status: 401 })
+  }
+
   try {
     const { searchParams } = new URL(req.url)
     const airline = searchParams.get("airline")
@@ -39,6 +44,11 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const admin = getAdminFromRequest(req)
+  if (!admin) {
+    return NextResponse.json({ error: "Unauthorized administrative access" }, { status: 401 })
+  }
+
   try {
     const body = await req.json()
     const {
@@ -79,7 +89,7 @@ export async function POST(req: Request) {
     if (error) throw error
 
     recordAdminAuditLog(
-      { id: "adm-ops", name: "Flight Operations Admin", role: "FLIGHT_OPERATIONS" },
+      admin,
       "CREATE_FLIGHT",
       `${airline} (${origin} → ${destination})`,
       data
@@ -92,6 +102,11 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
+  const admin = getAdminFromRequest(req)
+  if (!admin) {
+    return NextResponse.json({ error: "Unauthorized administrative access" }, { status: 401 })
+  }
+
   try {
     const body = await req.json()
     const { id, ...updates } = body
@@ -108,7 +123,7 @@ export async function PATCH(req: Request) {
     if (error) throw error
 
     recordAdminAuditLog(
-      { id: "adm-ops", name: "Flight Operations Admin", role: "FLIGHT_OPERATIONS" },
+      admin,
       "UPDATE_FLIGHT",
       `Flight ${id}`,
       updates
@@ -121,6 +136,11 @@ export async function PATCH(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  const admin = getAdminFromRequest(req)
+  if (!admin) {
+    return NextResponse.json({ error: "Unauthorized administrative access" }, { status: 401 })
+  }
+
   try {
     const { searchParams } = new URL(req.url)
     const id = searchParams.get("id")
@@ -131,7 +151,7 @@ export async function DELETE(req: Request) {
     if (error) throw error
 
     recordAdminAuditLog(
-      { id: "adm-super", name: "Super Admin", role: "SUPER_ADMIN" },
+      admin,
       "DELETE_FLIGHT",
       `Flight ID ${id}`
     )

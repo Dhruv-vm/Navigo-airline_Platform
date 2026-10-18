@@ -28,16 +28,30 @@ export async function POST(req: Request) {
       )
     }
 
-    // 2. Fetch passengers
-    const { data: passengers } = await supabase
-      .from("booking_passengers")
-      .select("*")
-      .eq("booking_id", booking.id)
-      .order("passenger_index", { ascending: true })
+    // 2. Fetch passengers, flight instances, and seats in parallel
+    const instanceIds = [booking.depart_flight_instance_id, booking.return_flight_instance_id].filter(Boolean)
+    
+    const [passengersRes, instancesRes, seatsRes] = await Promise.all([
+      supabase
+        .from("booking_passengers")
+        .select("id, booking_id, passenger_index, passenger_type, title, first_name, last_name, email, is_primary_contact")
+        .eq("booking_id", booking.id)
+        .order("passenger_index", { ascending: true }),
+      instanceIds.length > 0
+        ? supabase
+            .from("flight_instances")
+            .select("id, travel_date, gate, flights(id, airline, origin, destination, departure_time, arrival_time, aircraft)")
+            .in("id", instanceIds)
+        : Promise.resolve({ data: [] }),
+      supabase
+        .from("booking_seats")
+        .select("flight_instance_id, passenger_id, seat_number, cabin_class")
+        .eq("booking_id", booking.id),
+    ])
 
-    const paxList = passengers || []
+    const paxList = passengersRes.data || []
     if (lastName && paxList.length > 0) {
-      const match = paxList.some((p) => (p.last_name || "").toLowerCase() === lastName)
+      const match = paxList.some((p: any) => (p.last_name || "").toLowerCase() === lastName)
       if (!match) {
         return NextResponse.json(
           { error: `Last name "${lastName}" does not match booking record for PNR ${pnr}.` },
@@ -46,26 +60,8 @@ export async function POST(req: Request) {
       }
     }
 
-    // 3. Fetch flight instances & flights
-    const instanceIds = [booking.depart_flight_instance_id, booking.return_flight_instance_id].filter(Boolean)
-    let instanceMap = new Map<string, any>()
-
-    if (instanceIds.length > 0) {
-      const { data: instances } = await supabase
-        .from("flight_instances")
-        .select("*, flights(*)")
-        .in("id", instanceIds)
-
-      if (instances) {
-        instanceMap = new Map(instances.map((inst) => [inst.id, inst]))
-      }
-    }
-
-    // 4. Fetch seats
-    const { data: seats } = await supabase
-      .from("booking_seats")
-      .select("*")
-      .eq("booking_id", booking.id)
+    const instanceMap = new Map((instancesRes.data || []).map((inst: any) => [inst.id, inst]))
+    const seats = seatsRes.data || []
 
     // 5. Build legs
     const legs = []

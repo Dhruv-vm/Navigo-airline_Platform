@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
+import { getAdminAuthHeaders } from "@/lib/admin-client"
 
 export default function AdminCheckInPage() {
   const [bookings, setBookings] = useState<any[]>([])
@@ -13,7 +14,9 @@ export default function AdminCheckInPage() {
 
   const loadData = () => {
     setLoading(true)
-    fetch("/api/admin/bookings")
+    fetch("/api/admin/bookings", {
+      headers: getAdminAuthHeaders(),
+    })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d?.bookings) setBookings(d.bookings)

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { getAdminAuthHeaders } from "@/lib/admin-client"
 
 // ── Thin-stroke line icons — consistent with the rest of the admin panel,
 // replacing the emoji glyphs (🛡️ ✓ 🚪) that read as a different template. ──
@@ -30,7 +31,9 @@ export default function AdminSmartCheckInPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch("/api/admin/bookings")
+    fetch("/api/admin/bookings", {
+      headers: getAdminAuthHeaders(),
+    })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d?.bookings) setBookings(d.bookings)

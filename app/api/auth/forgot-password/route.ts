@@ -27,10 +27,10 @@ export async function POST(req: Request) {
       .maybeSingle()
 
     if (userError || !user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      )
+      // Prevent user enumeration
+      return NextResponse.json({
+        message: "If an account exists with this email, password reset instructions have been sent.",
+      })
     }
 
     // 🔐 Generate reset token
@@ -38,8 +38,6 @@ export async function POST(req: Request) {
 
     // ⏳ Expiry (15 minutes)
     const expiry = new Date(Date.now() + 1000 * 60 * 15)
-
-    console.log("🔑 Generated token:", token)
 
     // 💾 Save token in DB
     const { error: updateError } = await supabase
@@ -53,7 +51,7 @@ export async function POST(req: Request) {
     if (updateError) {
       console.error("❌ DB update failed:", updateError)
       return NextResponse.json(
-        { error: "Failed to save reset token" },
+        { error: "Failed to process password reset" },
         { status: 500 }
       )
     }
@@ -62,12 +60,13 @@ export async function POST(req: Request) {
     const origin = req.headers.get("origin") || req.headers.get("referer")?.replace(/\/$/, "") || "http://localhost:3000"
     const resetLink = `${origin}/reset-password?token=${token}`
 
-    // 🚨 For now: log instead of email
-    console.log("📩 RESET LINK:", resetLink)
+    if (process.env.NODE_ENV !== "production") {
+      console.log("📩 RESET LINK (DEV ONLY):", resetLink)
+    }
 
     return NextResponse.json({
-      message: "Reset link generated",
-      resetLink, // 👈 helpful for testing
+      message: "If an account exists with this email, password reset instructions have been sent.",
+      ...(process.env.NODE_ENV !== "production" ? { devResetLink: resetLink } : {}),
     })
 
   } catch (err) {

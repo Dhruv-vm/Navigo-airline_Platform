@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import {
   AdminRole,
   ADMIN_ROLES_META,
+  DEMO_ADMIN_ACCOUNTS,
   hasAdminPermission,
 } from "@/lib/admin-auth"
 
@@ -58,6 +59,29 @@ const IconArrowLeft = ({ className }: { className?: string }) => (
   <svg {...iconProps} className={className}><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
 )
 
+function AdminClock() {
+  const [currentTime, setCurrentTime] = useState<string>("")
+
+  useEffect(() => {
+    const updateTime = () => {
+      const d = new Date()
+      setCurrentTime(
+        d.toLocaleTimeString("en-IN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          timeZoneName: "short",
+        }) + " · " + d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+      )
+    }
+    updateTime()
+    const interval = setInterval(updateTime, 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  return <span className="text-slate-400">{currentTime}</span>
+}
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -71,7 +95,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   })
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [currentTime, setCurrentTime] = useState<string>("")
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [alertsOpen, setAlertsOpen] = useState(false)
@@ -91,11 +114,48 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     const savedMode = localStorage.getItem("navigo_admin_telemetry_mode")
     if (savedMode === "SIMULATION") setIsSimulated(true)
-  }, [])
 
-  const handleRoleChange = (role: AdminRole) => {
+    const token = localStorage.getItem("navigo_admin_token")
+    if (!token && pathname !== "/admin/login") {
+      fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "admin@navigo.app", password: "admin" }),
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data?.token) {
+            localStorage.setItem("navigo_admin_token", data.token)
+            localStorage.setItem("navigo_admin_session", JSON.stringify(data.admin || data.user))
+          }
+        })
+        .catch(() => {})
+    }
+  }, [pathname])
+
+  const handleRoleChange = async (role: AdminRole) => {
     setCurrentRole(role)
     setRoleDropdownOpen(false)
+
+    const targetAccount = DEMO_ADMIN_ACCOUNTS.find((a) => a.role === role)
+    if (targetAccount) {
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: targetAccount.email, password: targetAccount.password }),
+        })
+        const data = await res.json()
+        if (data?.token) {
+          localStorage.setItem("navigo_admin_token", data.token)
+          localStorage.setItem("navigo_admin_session", JSON.stringify(data.admin || data.user))
+          setAdminUser(data.admin || data.user)
+          window.location.reload()
+          return
+        }
+      } catch {}
+    }
+
     if (adminUser) {
       const updated = { ...adminUser, role }
       setAdminUser(updated)
@@ -110,23 +170,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     window.dispatchEvent(new CustomEvent("navigo_telemetry_mode_changed", { detail: { isSimulated: next } }))
   }
 
-  // Clock
-  useEffect(() => {
-    const updateTime = () => {
-      const d = new Date()
-      setCurrentTime(
-        d.toLocaleTimeString("en-IN", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-          timeZoneName: "short",
-        }) + " · " + d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
-      )
-    }
-    updateTime()
-    const interval = setInterval(updateTime, 1000)
-    return () => clearInterval(interval)
-  }, [])
+  // Bypass admin frame for the dedicated admin login page
+  if (pathname === "/admin/login") {
+    return <>{children}</>
+  }
 
   // Filter Nav Items by role
   const visibleNavItems = NAV_ITEMS.filter((item) =>
@@ -175,7 +222,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <span className="text-emerald-400 font-semibold">All Systems Operational</span>
             </div>
             <span className="text-slate-600">|</span>
-            <span className="text-slate-400">{currentTime}</span>
+            <AdminClock />
           </div>
         </div>
 
