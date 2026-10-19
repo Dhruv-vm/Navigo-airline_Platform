@@ -2,10 +2,17 @@
 
 import { useEffect, useMemo, useState, Suspense, type MouseEvent as ReactMouseEvent } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
+import { motion, AnimatePresence } from "framer-motion"
 import Navbar from "@/components/navbar"
 import FlightCard from "@/components/FlightCard"
 import PriceInsight from "@/components/PriceInsight"
 import { getNavPointsBalance, pointsToDiscount } from "@/lib/navpoints"
+import { airports } from "@/lib/airports"
+
+function getAirportCity(code: string): string {
+  const match = airports.find((a) => a.code === code)
+  return match ? match.city : code
+}
 
 function formatDate(dateStr: string | null) {
   if (!dateStr) return { date: "", day: "" }
@@ -423,8 +430,55 @@ function FlightsPageContent() {
     { key: "best", label: "Best", icon: "⭐", flight: bestFlight },
     { key: "cheapest", label: "Cheapest", icon: "💰", flight: cheapestFlight },
     { key: "fastest", label: "Fastest", icon: "⚡", flight: fastestFlight },
-    { key: "value", label: "Best Value", icon: "🎯", flight: bestValueFlight },
+    { key: "value", label: "Value", icon: "🎯", flight: bestValueFlight },
   ]
+
+  const cardMeta: Record<SortMode, {
+    color: string;
+    badgeBg: string;
+    badgeBorder: string;
+    badgeText: string;
+    border: string;
+    glow: string;
+    tagline: string;
+  }> = {
+    best: {
+      color: "#F59E0B",
+      badgeBg: "bg-amber-400/15",
+      badgeBorder: "border-amber-400/30",
+      badgeText: "text-amber-300",
+      border: "border-amber-400/50",
+      glow: "shadow-[0_0_30px_rgba(251,191,36,0.22)]",
+      tagline: "Top Pick",
+    },
+    cheapest: {
+      color: "#10B981",
+      badgeBg: "bg-emerald-400/15",
+      badgeBorder: "border-emerald-400/30",
+      badgeText: "text-emerald-300",
+      border: "border-emerald-400/50",
+      glow: "shadow-[0_0_30px_rgba(52,211,153,0.22)]",
+      tagline: "Lowest Fare",
+    },
+    fastest: {
+      color: "#06B6D4",
+      badgeBg: "bg-cyan-400/15",
+      badgeBorder: "border-cyan-400/30",
+      badgeText: "text-cyan-300",
+      border: "border-cyan-400/50",
+      glow: "shadow-[0_0_30px_rgba(6,182,212,0.22)]",
+      tagline: "Min Duration",
+    },
+    value: {
+      color: "#8B5CF6",
+      badgeBg: "bg-violet-400/15",
+      badgeBorder: "border-violet-400/30",
+      badgeText: "text-violet-300",
+      border: "border-violet-400/50",
+      glow: "shadow-[0_0_30px_rgba(139,92,246,0.22)]",
+      tagline: "Smart Choice",
+    },
+  }
 
   const handleContinue = () => {
     if (!selectedDepartFlight) return
@@ -515,85 +569,129 @@ function FlightsPageContent() {
       <div className="relative z-10">
         <Navbar />
 
-        {/* TOP BAR */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-24 pb-6">
-          <div className="topbar-enter relative bg-gradient-to-r from-[#0D1A2C] via-[#0B1729] to-[#0D1A2C] border border-white/[0.08] rounded-2xl px-4 sm:px-8 lg:px-10 py-4 sm:py-6 ticket-edge overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-blue-400 via-amber-400 to-amber-300" />
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-3 sm:gap-6 lg:gap-10 flex-wrap">
+        {/* TOP BAR - LUXURY COCKPIT COMMAND BAR */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-24 pb-5">
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
+            className="relative bg-gradient-to-r from-[#0C1729]/95 via-[#0F1E33]/98 to-[#0A1424]/95 border border-white/[0.12] rounded-3xl p-4 sm:p-5 lg:px-7 lg:py-5 shadow-[0_20px_50px_rgba(0,0,0,0.55)] backdrop-blur-2xl overflow-hidden"
+          >
+            {/* Top decorative hairline */}
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-amber-400/70 to-transparent" />
 
-                <div className="text-slate-400 text-sm pr-4 sm:pr-6 sm:border-r border-white/10 flex items-center gap-1.5">
-                  <span className="text-amber-300">⇄</span> {mode}
+            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-6">
+
+              {/* LEFT: Trip Type + Route Hub */}
+              <div className="flex items-center gap-3 sm:gap-5 flex-wrap sm:flex-nowrap shrink-0">
+                {/* Trip Mode Pill */}
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-xs font-semibold text-slate-300 shrink-0">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                  </span>
+                  <span className="capitalize">{mode}</span>
                   {activeTab === "return" && mode === "roundtrip" && (
-                    <span className="text-[10px] uppercase tracking-wide text-cyan-300 bg-cyan-400/10 border border-cyan-400/20 rounded-full px-2 py-0.5 ml-1">
-                      return leg
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-300 bg-cyan-400/15 border border-cyan-400/30 rounded-full px-2 py-0.5 ml-1">
+                      Return Leg
                     </span>
                   )}
                 </div>
 
-                <div className="flex items-center gap-4 sm:gap-8 pr-4 sm:pr-8 sm:border-r border-white/10">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">From</p>
-                    <p className="font-board text-2xl sm:text-4xl font-extrabold tracking-wider text-white">{displayFrom}</p>
+                {/* Cities & Airport Codes */}
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className="text-left">
+                    <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider truncate max-w-[85px] sm:max-w-[110px]">
+                      {getAirportCity(displayFrom || "")}
+                    </p>
+                    <p className="font-display text-2xl sm:text-3xl font-black tracking-tight text-white leading-none mt-0.5">
+                      {displayFrom}
+                    </p>
                   </div>
-                  <button
+
+                  <motion.button
+                    whileHover={{ scale: 1.1, rotate: swapSpin ? 360 : 180 }}
+                    whileTap={{ scale: 0.9 }}
                     onClick={() => setSwapSpin((v) => !v)}
-                    aria-label="Route indicator"
-                    className={`btn-tactile swap-circle w-10 h-10 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-amber-400/10 border border-amber-400/25 text-amber-300 transition-transform duration-500 active:scale-90 ${swapSpin ? "rotate-180" : "rotate-0"}`}
-                  >⇄</button>
-                  <div>
-                    <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">To</p>
-                    <p className="font-board text-2xl sm:text-4xl font-extrabold tracking-wider text-amber-300">{displayTo}</p>
+                    aria-label="Route vector indicator"
+                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-amber-400/10 border border-amber-400/25 text-amber-300 flex items-center justify-center hover:bg-amber-400/20 transition-all shrink-0 cursor-pointer shadow-[0_0_15px_rgba(251,191,36,0.15)]"
+                  >
+                    <span className="text-sm">⇄</span>
+                  </motion.button>
+
+                  <div className="text-left">
+                    <p className="text-[10px] uppercase font-bold text-amber-300/80 tracking-wider truncate max-w-[85px] sm:max-w-[110px]">
+                      {getAirportCity(displayTo || "")}
+                    </p>
+                    <p className="font-display text-2xl sm:text-3xl font-black tracking-tight text-amber-300 leading-none mt-0.5">
+                      {displayTo}
+                    </p>
                   </div>
                 </div>
-
-                <div className="flex items-center pr-4 sm:pr-8 sm:border-r border-white/10">
-                  <div className="pr-4 sm:pr-6">
-                    <p className={`text-xs ${activeTab === "departure" ? "text-amber-300/80" : "text-slate-500"}`}>Depart</p>
-                    <p className="font-display text-base sm:text-lg font-bold">{formattedDepart.date}</p>
-                  </div>
-                  {mode === "roundtrip" && returnDate && (
-                    <>
-                      <div className="h-10 w-px bg-white/10 mx-3 sm:mx-4" />
-                      <div className="pl-4 sm:pl-6">
-                        <p className={`text-xs ${activeTab === "return" ? "text-amber-300/80" : "text-slate-500"}`}>Return</p>
-                        <p className="font-display text-base sm:text-lg font-bold">{formatDate(returnDate).date}</p>
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                <div>
-                  <p className="text-xs text-slate-500">Passengers</p>
-                  <p className="font-display text-lg sm:text-xl font-bold">{passengers}</p>
-                  <p className="text-xs text-cyan-300/80">Economy</p>
-                </div>
-
-                <div className="hidden lg:flex items-center gap-2 pl-4 border-l border-white/10">
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-400/10 border border-amber-400/25">
-                    <span className="text-sm">🪙</span>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider text-amber-300 font-bold">
-                        {userPoints} NavPoints
-                      </p>
-                      <p className="text-[10px] text-slate-400">
-                        Redeem up to ₹{pointsToDiscount(userPoints)} off
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
               </div>
-              <button onClick={() => router.push("/")}
-                onMouseDown={editRipple.spawn}
-                className="edit-search-btn relative overflow-hidden px-5 py-2 rounded-full border border-amber-400/25 bg-amber-400/[0.06] text-amber-200 hover:bg-amber-400/[0.12] hover:border-amber-400/40 hover:scale-105 hover:shadow-[0_0_20px_rgba(251,191,36,0.25)] transition-all duration-200">
-                {editRipple.ripples.map((rp) => (
-                  <span key={rp.id} className="ripple" style={{ left: rp.x, top: rp.y }} />
-                ))}
-                ✏️ Edit
-              </button>
+
+              {/* CENTER: Compact Spec Chips (Dates, Pax, NavPoints) */}
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap lg:flex-nowrap lg:justify-center overflow-x-auto py-0.5">
+                {/* Dates Chip */}
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/[0.03] border border-white/10 shrink-0">
+                  <span className="text-sm">📅</span>
+                  <div className="text-left leading-tight">
+                    <p className="text-[10px] uppercase font-semibold text-slate-400">
+                      {mode === "roundtrip" ? "Depart - Return" : "Departure"}
+                    </p>
+                    <p className="text-xs sm:text-sm font-bold text-white whitespace-nowrap">
+                      {formattedDepart.date}
+                      {mode === "roundtrip" && returnDate && (
+                        <span className="text-amber-300/90 ml-1.5">⇄ {formatDate(returnDate).date}</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Passengers Chip */}
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/[0.03] border border-white/10 shrink-0">
+                  <span className="text-sm">👥</span>
+                  <div className="text-left leading-tight">
+                    <p className="text-[10px] uppercase font-semibold text-slate-400">Travelers</p>
+                    <p className="text-xs sm:text-sm font-bold text-white whitespace-nowrap">
+                      {passengers} <span className="text-cyan-300 font-medium text-xs">Economy</span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* NavPoints Chip */}
+                <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-400/10 border border-amber-400/25 shrink-0">
+                  <span className="text-sm">🪙</span>
+                  <div className="text-left leading-tight">
+                    <p className="text-[10px] uppercase font-bold text-amber-300">
+                      {userPoints} NavPoints
+                    </p>
+                    <p className="text-[10px] text-slate-400 whitespace-nowrap">
+                      ₹{pointsToDiscount(userPoints)} reward savings
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* RIGHT: Edit Search Action Button */}
+              <div className="flex items-center justify-end shrink-0">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => router.push("/")}
+                  onMouseDown={editRipple.spawn}
+                  className="relative overflow-hidden px-5 py-2.5 rounded-full border border-amber-400/30 bg-amber-400/10 text-amber-200 font-semibold text-xs sm:text-sm hover:bg-amber-400/20 hover:border-amber-400/50 shadow-[0_0_20px_rgba(251,191,36,0.18)] transition-all cursor-pointer flex items-center gap-2"
+                >
+                  {editRipple.ripples.map((rp) => (
+                    <span key={rp.id} className="ripple" style={{ left: rp.x, top: rp.y }} />
+                  ))}
+                  <span>✏️</span>
+                  <span className="whitespace-nowrap">Edit Search</span>
+                </motion.button>
+              </div>
+
             </div>
-          </div>
+          </motion.div>
         </div>
 
         {/* MAIN */}
@@ -775,110 +873,209 @@ function FlightsPageContent() {
           {/* FLIGHTS */}
           <div className="col-span-1 lg:col-span-6 min-w-0 space-y-4">
             {mode === "roundtrip" && (
-              <div className="inline-flex items-center gap-1 bg-white/[0.03] border border-white/[0.06] rounded-full p-1.5 mb-2">
-                <button onClick={() => switchTab("departure")}
-                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200
-                  ${activeTab === "departure"
-                    ? "text-[#060B14] bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500 shadow-[0_2px_12px_rgba(251,191,36,0.35)]"
-                    : "text-slate-400 hover:text-white hover:bg-white/[0.05]"}`}>
-                  Departure
+              <div className="relative inline-flex items-center p-1.5 rounded-2xl bg-[#0B1524]/90 border border-white/10 backdrop-blur-xl mb-2 shadow-[0_10px_30px_rgba(0,0,0,0.4)]">
+                <button
+                  type="button"
+                  onClick={() => switchTab("departure")}
+                  className={`relative z-10 px-5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors duration-200 flex items-center gap-2 cursor-pointer ${
+                    activeTab === "departure"
+                      ? "text-[#070D18]"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  {activeTab === "departure" && (
+                    <motion.div
+                      layoutId="activeTabPill"
+                      className="absolute inset-0 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 shadow-[0_4px_16px_rgba(251,191,36,0.3)]"
+                      transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center gap-1.5">
+                    <span>🛫</span>
+                    <span>Departure</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-black/25 font-display font-black tracking-tight">
+                      {origin} → {destination}
+                    </span>
+                  </span>
                 </button>
                 <button
+                  type="button"
                   disabled={!selectedDepartFlight}
                   onClick={goToReturn}
-                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200
-                  ${!selectedDepartFlight
-                    ? "opacity-40 cursor-not-allowed text-slate-600"
-                    : activeTab === "return"
-                      ? "text-[#060B14] bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500 shadow-[0_2px_12px_rgba(251,191,36,0.35)]"
-                      : `text-slate-400 hover:text-white hover:bg-white/[0.05] ${returnTabShouldGlow ? "tab-glow" : ""}`}`}>
-                  Return
+                  className={`relative z-10 px-5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors duration-200 flex items-center gap-2 cursor-pointer ${
+                    !selectedDepartFlight
+                      ? "opacity-40 cursor-not-allowed text-slate-500"
+                      : activeTab === "return"
+                      ? "text-[#070D18]"
+                      : `text-slate-400 hover:text-white ${returnTabShouldGlow ? "text-amber-300" : ""}`
+                  }`}
+                >
+                  {activeTab === "return" && (
+                    <motion.div
+                      layoutId="activeTabPill"
+                      className="absolute inset-0 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 shadow-[0_4px_16px_rgba(251,191,36,0.3)]"
+                      transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center gap-1.5">
+                    <span>🛬</span>
+                    <span>Return</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-black/25 font-display font-black tracking-tight">
+                      {destination} → {origin}
+                    </span>
+                    {returnTabShouldGlow && (
+                      <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping ml-1" />
+                    )}
+                  </span>
                 </button>
               </div>
             )}
 
             {/* SUMMARY CARDS */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {summaryCards.map((card, i) => (
-                <button key={card.key} type="button"
-                  disabled={!card.flight}
-                  onClick={() => setSortBy(card.key)}
-                  style={{ animationDelay: `${i * 60}ms` }}
-                  className={`fade-up relative text-left p-4 rounded-2xl border transition-all duration-300 overflow-hidden ticket-edge group
-                  ${sortBy === card.key
-                    ? "bg-amber-400/[0.1] border-amber-400/50 shadow-[0_0_24px_rgba(251,191,36,0.18)]"
-                    : "bg-white/[0.03] border-white/10 hover:bg-white/[0.06] hover:border-amber-400/30 hover:shadow-[0_0_18px_rgba(251,191,36,0.12)] hover:-translate-y-0.5"}
-                  ${!card.flight ? "opacity-40 cursor-not-allowed" : ""}`}
-                >
-                  {sortBy === card.key ? (
-                    <div className="top-accent-line" />
-                  ) : (
-                    <div className="top-accent-hairline opacity-0 group-hover:opacity-100 transition-opacity" />
-                  )}
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-base">{card.icon}</span>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-300">{card.label}</span>
-                  </div>
-                  {card.flight ? (
-                    <>
-                      <p className="text-sm font-semibold text-slate-200 truncate">{card.flight.airline}</p>
-                      <p className="font-board text-lg font-extrabold gold-glow-text">₹{card.flight.final_price.toLocaleString("en-IN")}</p>
-                      <p className="text-xs text-slate-400 font-medium">
-                        {card.flight.duration || formatDuration(getDurationMinutes(card.flight))}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-xs text-slate-500">No flights</p>
-                  )}
-                </button>
-              ))}
+              {summaryCards.map((card, i) => {
+                const meta = cardMeta[card.key]
+                const isSelected = sortBy === card.key
+                const airline = card.flight?.airline
+                const logoSrc = airline ? (airlineLogos[airline] || "/airlines/default.png") : null
+
+                return (
+                  <motion.button
+                    key={card.key}
+                    type="button"
+                    disabled={!card.flight}
+                    onClick={() => setSortBy(card.key)}
+                    whileHover={card.flight ? { y: -3, scale: 1.015 } : {}}
+                    whileTap={card.flight ? { scale: 0.98 } : {}}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.35, delay: i * 0.05 }}
+                    className={`relative text-left p-3.5 sm:p-4 rounded-2xl border transition-all duration-300 overflow-hidden group cursor-pointer ${
+                      isSelected
+                        ? `bg-white/[0.08] ${meta.border} ${meta.glow}`
+                        : "bg-white/[0.03] border-white/10 hover:bg-white/[0.06] hover:border-white/20 shadow-[0_4px_20px_rgba(0,0,0,0.3)]"
+                    } ${!card.flight ? "opacity-40 cursor-not-allowed" : ""}`}
+                  >
+                    {/* Active top hairline bar */}
+                    <div
+                      className={`absolute top-0 left-0 right-0 h-[2.5px] transition-opacity duration-300 ${
+                        isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-40"
+                      }`}
+                      style={{ backgroundColor: meta.color }}
+                    />
+
+                    {/* Category Header Row */}
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-sm shrink-0">{card.icon}</span>
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-200 truncate">
+                          {card.label}
+                        </span>
+                      </div>
+                      <span
+                        className={`w-2 h-2 rounded-full shrink-0 ${isSelected ? "animate-pulse" : "opacity-50"}`}
+                        style={{ backgroundColor: meta.color }}
+                      />
+                    </div>
+
+                    {card.flight ? (
+                      <div>
+                        {/* Price in clean, bold luxury typography */}
+                        <p className="font-display text-xl sm:text-2xl font-black text-white leading-tight">
+                          ₹{card.flight.final_price.toLocaleString("en-IN")}
+                        </p>
+
+                        {/* Airline & Duration cleanly formatted */}
+                        <div className="flex items-center gap-1.5 mt-1.5 text-slate-300 text-xs min-w-0">
+                          {logoSrc && (
+                            <div className="w-4 h-4 rounded-full bg-white flex items-center justify-center overflow-hidden shrink-0 ring-1 ring-white/10">
+                              <img src={logoSrc} alt={airline} className="w-3.5 h-3.5 object-contain" />
+                            </div>
+                          )}
+                          <span className="font-medium truncate text-[11px] text-slate-300">
+                            {airline}
+                          </span>
+                          <span className="text-slate-500">•</span>
+                          <span className="text-[11px] text-slate-400 shrink-0 font-medium">
+                            {card.flight.duration || formatDuration(getDurationMinutes(card.flight))}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500 py-2">No flights</p>
+                    )}
+                  </motion.button>
+                )
+              })}
             </div>
 
             {/* FLIGHT CARDS */}
             <div id="flight-results" className="space-y-4">
-            {flightsLoading ? (
-              <div className="space-y-4">
-                {[0, 1, 2].map((i) => (
-                  <div key={i} className="skeleton-card h-[220px]" style={{ animationDelay: `${i * 0.12}s` }} />
-                ))}
-              </div>
-            ) : (
-              applySort(currentFiltered).map((flight, i) => {
-                const isThisSelected =
-                  activeTab === "departure"
-                    ? selectedDepartFlight?.id === flight.id
-                    : selectedReturnFlight?.id === flight.id
+              {flightsLoading ? (
+                <div className="space-y-4">
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className="skeleton-card h-[220px]" style={{ animationDelay: `${i * 0.12}s` }} />
+                  ))}
+                </div>
+              ) : (
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={`${activeTab}-${sortBy}-${currentFiltered.length}`}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -12 }}
+                    transition={{ duration: 0.25 }}
+                    className="space-y-4"
+                  >
+                    {applySort(currentFiltered).map((flight, i) => {
+                      const isThisSelected =
+                        activeTab === "departure"
+                          ? selectedDepartFlight?.id === flight.id
+                          : selectedReturnFlight?.id === flight.id
 
-                return (
-                  <div key={flight.id} className="fade-up" style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}>
-                    <FlightCard
-                      flight={{ ...flight, price: flight.final_price, passengers }}
-                      isSelected={isThisSelected}
-                      isCheapest={!!cheapestFlight && cheapestFlight.id === flight.id}
-                      onSelect={() => {
-                        if (activeTab === "departure") {
-                          selectDepartureAndAdvance(flight)
-                        } else {
-                          setSelectedReturnFlight(flight)
-                        }
-                      }}
-                    />
-                  </div>
-                )
-              })
-            )}
+                      return (
+                        <motion.div
+                          key={flight.id}
+                          initial={{ opacity: 0, y: 16 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.35, delay: Math.min(i, 6) * 0.05 }}
+                        >
+                          <FlightCard
+                            flight={{ ...flight, price: flight.final_price, passengers }}
+                            isSelected={isThisSelected}
+                            isCheapest={!!cheapestFlight && cheapestFlight.id === flight.id}
+                            onSelect={() => {
+                              if (activeTab === "departure") {
+                                selectDepartureAndAdvance(flight)
+                              } else {
+                                setSelectedReturnFlight(flight)
+                              }
+                            }}
+                          />
+                        </motion.div>
+                      )
+                    })}
+                  </motion.div>
+                </AnimatePresence>
+              )}
 
-            {!flightsLoading && currentFiltered.length === 0 && (
-              <div className="text-center text-slate-400 text-sm py-10 border border-white/10 rounded-2xl bg-white/[0.02]">
-                No flights match your current filters.{" "}
-                <button
-                  onClick={triggerReset}
-                  className="text-cyan-300 hover:underline"
+              {!flightsLoading && currentFiltered.length === 0 && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="text-center text-slate-400 text-sm py-12 px-6 border border-white/10 rounded-3xl bg-white/[0.02] backdrop-blur-md"
                 >
-                  Reset filters
-                </button>
-              </div>
-            )}
+                  <p className="text-3xl mb-2">✈️</p>
+                  <p className="font-semibold text-white mb-1">No flights match your filters</p>
+                  <p className="text-xs text-slate-400 mb-4">Try adjusting your price range, stop count, or airline preferences.</p>
+                  <button
+                    onClick={triggerReset}
+                    className="px-4 py-2 rounded-full bg-cyan-400/10 border border-cyan-400/30 text-cyan-300 text-xs font-semibold hover:bg-cyan-400/20 transition-all cursor-pointer"
+                  >
+                    Reset all filters
+                  </button>
+                </motion.div>
+              )}
             </div>
           </div>
 
