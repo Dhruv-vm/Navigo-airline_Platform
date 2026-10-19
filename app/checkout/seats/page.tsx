@@ -1,9 +1,33 @@
 "use client"
 
-import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useState, useRef, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
+import { motion, AnimatePresence } from "framer-motion"
 import Navbar from "@/components/navbar"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Plane,
+  Clock,
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  Sparkles,
+  ShieldCheck,
+  Wifi,
+  Zap,
+  Armchair,
+  Coffee,
+  Lock,
+  Info,
+  Trash2,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  Ticket,
+  Luggage,
+  AlertCircle,
+  X,
+  ChevronRight,
+} from "lucide-react"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -26,8 +50,6 @@ type StoredFlight = {
   travel_date?: string
 }
 
-// Raw shape as it comes back from booking_passenger via Supabase
-// (snake_case — matches the table columns exactly).
 type StoredPassenger = {
   id: string
   booking_id?: string
@@ -46,8 +68,6 @@ type StoredPassenger = {
   country_code?: string | null
   mobile?: string | null
   is_primary_contact?: boolean
-  // tolerate camelCase too, in case an older draft from the passengers page
-  // (client-side localId-based shape) ends up in sessionStorage
   firstName?: string
   lastName?: string
   type?: string
@@ -93,25 +113,21 @@ type SelectionMap = Record<string, string>
 
 const STORAGE_KEY = "navigo:checkoutSelection"
 
-// Rebuilds the original /flights search query from the stored selection —
-// same param names confirmed against app/api/flights/route.ts (`depart` /
-// `return`, not `departDate`/`returnDate`) so "Edit Flight" actually lands
-// on a populated search instead of a blank one. Shared logic with the
-// add-ons page's version of this helper.
-function buildFlightSearchUrl(selection: CheckoutSelection): string {
-  const params = new URLSearchParams()
-  if (selection.origin) params.set("origin", selection.origin)
-  if (selection.destination) params.set("destination", selection.destination)
-  if (selection.departFlight?.travel_date) params.set("depart", selection.departFlight.travel_date)
-  if (selection.returnFlight?.travel_date) params.set("return", selection.returnFlight.travel_date)
-  params.set("passengers", String(selection.passengers))
-  if (selection.mode) params.set("mode", selection.mode)
-  return `/flights?${params.toString()}`
+const AIRPORT_CITIES: Record<string, string> = {
+  DEL: "Delhi",
+  BOM: "Mumbai",
+  BLR: "Bengaluru",
+  MAA: "Chennai",
+  CCU: "Kolkata",
+  HYD: "Hyderabad",
+  COK: "Kochi",
+  GOI: "Goa",
+  DXB: "Dubai",
+  SIN: "Singapore",
+  LHR: "London",
+  JFK: "New York",
 }
 
-// Same logo map used on the passenger-details page and FlightCard —
-// kept in sync here so the flight info bar shows the real airline logo
-// instead of two-letter initials.
 const airlineLogos: Record<string, string> = {
   "IndiGo": "/airlines/indigo.png",
   "Air India": "/airlines/airindia.png",
@@ -127,10 +143,16 @@ const airlineLogos: Record<string, string> = {
   "Navigo": "/logo.png",
 }
 
-// ---------------------------------------------------------------------------
-// Passenger name helpers — normalizes either snake_case (DB / booking_passenger)
-// or camelCase (older client-only draft) shapes into display-ready strings.
-// ---------------------------------------------------------------------------
+function buildFlightSearchUrl(selection: CheckoutSelection): string {
+  const params = new URLSearchParams()
+  if (selection.origin) params.set("origin", selection.origin)
+  if (selection.destination) params.set("destination", selection.destination)
+  if (selection.departFlight?.travel_date) params.set("depart", selection.departFlight.travel_date)
+  if (selection.returnFlight?.travel_date) params.set("return", selection.returnFlight.travel_date)
+  params.set("passengers", String(selection.passengers))
+  if (selection.mode) params.set("mode", selection.mode)
+  return `/flights?${params.toString()}`
+}
 
 function paxFirstName(p: StoredPassenger, fallbackIndex: number): string {
   return p.first_name || p.firstName || `Passenger`
@@ -156,10 +178,6 @@ function paxTypeLabel(p: StoredPassenger): string {
   if (t.startsWith("infant")) return "Infant"
   return "Adult"
 }
-
-// ---------------------------------------------------------------------------
-// Date/time helpers
-// ---------------------------------------------------------------------------
 
 function formatTime(timeStr?: string): string {
   if (!timeStr) return "--:--"
@@ -207,60 +225,57 @@ function parseTimeToMinutes(timeStr?: string): number | null {
 }
 
 // ---------------------------------------------------------------------------
-// Cabin class config — a real hierarchy (Economy → First), so each tier
-// carries a roman numeral (I–IV). That numbering encodes something true
-// (ascending luxury tier) rather than decorating, per design guidance.
+// Cabin Class Config
 // ---------------------------------------------------------------------------
 
 const CABIN_CLASSES = [
-  { key: "economy",         label: "Economy Class",   tier: "I",   fromPrice: 2500 },
-  { key: "premium_economy", label: "Premium Economy",  tier: "II",  fromPrice: 6000 },
-  { key: "business",        label: "Business Class",  tier: "III", fromPrice: 12000 },
-  { key: "first",           label: "First Class",     tier: "IV",  fromPrice: 28000 },
+  { key: "economy",         label: "Economy Class",   tier: "I",   fromPrice: 2500, pitch: "30\" Standard Pitch", desc: "Ergonomic comfort, USB power & cabin refreshments" },
+  { key: "premium_economy", label: "Premium Economy",  tier: "II",  fromPrice: 6000, pitch: "36\" Extra Legroom", desc: "6 inches extra legroom, priority baggage & dining" },
+  { key: "business",        label: "Business Class",  tier: "III", fromPrice: 12000, pitch: "180° Lie-Flat Bed", desc: "Direct aisle access, lounge access & gourmet cuisine" },
+  { key: "first",           label: "First Class",     tier: "IV",  fromPrice: 28000, pitch: "Private Enclosed Suite", desc: "Sliding privacy doors, fine dining & VIP concierge" },
 ] as const
 
 type CabinKey = (typeof CABIN_CLASSES)[number]["key"]
 
-const CABIN_PERKS: Record<CabinKey, { icon: string; label: string; desc: string }[]> = {
+const CABIN_PERKS: Record<CabinKey, { icon: "wifi" | "zap" | "armchair" | "coffee" | "luggage"; label: string; desc: string }[]> = {
   economy: [
-    { icon: "◧", label: "Standard seat", desc: "Comfortable recline & legroom" },
-    { icon: "⌗", label: "Cabin baggage", desc: "7kg carry-on included" },
-    { icon: "◎", label: "In-flight snacks", desc: "Complimentary on longer routes" },
+    { icon: "armchair", label: "Standard 30\" Seat Pitch", desc: "Ergonomic recline & adjustable headrest" },
+    { icon: "luggage", label: "7kg Cabin Baggage", desc: "Carry-on luggage included" },
+    { icon: "coffee", label: "In-Flight Refreshments", desc: "Complimentary snacks & beverages" },
+    { icon: "zap", label: "USB Power Outlets", desc: "Device charging at every seat" },
   ],
   premium_economy: [
-    { icon: "◧", label: "Extra legroom", desc: "Up to 6 inches more space" },
-    { icon: "⌗", label: "Priority baggage", desc: "First off the belt" },
-    { icon: "◎", label: "Enhanced meals", desc: "Upgraded in-flight dining" },
+    { icon: "armchair", label: "Extra Legroom 36\" Pitch", desc: "Up to 6 inches of dedicated stretch room" },
+    { icon: "luggage", label: "Priority Baggage Handling", desc: "First bags unloaded at baggage carousel" },
+    { icon: "coffee", label: "Enhanced Multi-Course Dining", desc: "Chef-selected hot meal options" },
+    { icon: "wifi", label: "High-Speed In-Flight Wi-Fi", desc: "Complimentary messaging package" },
   ],
   business: [
-    { icon: "⊡", label: "Lie-flat recline", desc: "Deep recline with extra padding" },
-    { icon: "▣", label: "Lounge access", desc: "Business lounge at select airports" },
-    { icon: "✦", label: "Premium dining", desc: "Curated multi-course meals" },
-    { icon: "⊕", label: "Priority boarding", desc: "Skip the queue" },
+    { icon: "armchair", label: "180° Full Lie-Flat Bed", desc: "Spacious direct aisle access pod" },
+    { icon: "coffee", label: "Curated Gourmet Menu", desc: "Fine dining with sommelier selections" },
+    { icon: "wifi", label: "Full Flight Wi-Fi Access", desc: "Stream, work and browse high speed" },
+    { icon: "luggage", label: "Business Lounge Access", desc: "Complimentary lounge before departure" },
   ],
   first: [
-    { icon: "⊡", label: "Private suite", desc: "Complete privacy with sliding doors" },
-    { icon: "⌂", label: "Flat bed", desc: "Up to 80\" bed with luxury bedding" },
-    { icon: "✦", label: "Fine dining", desc: "Curated gourmet meals & beverages" },
-    { icon: "◎", label: "Personal concierge", desc: "Dedicated assistance throughout" },
-    { icon: "▣", label: "Lounge access", desc: "Exclusive first class lounge access" },
-    { icon: "⊕", label: "Priority boarding", desc: "Board first, relax sooner" },
+    { icon: "armchair", label: "Private Enclosed Suite", desc: "Sliding privacy doors & 80\" flat bed" },
+    { icon: "coffee", label: "A La Carte Fine Dining", desc: "Dine on demand with premium cellar" },
+    { icon: "wifi", label: "Personal VIP Concierge", desc: "Dedicated flight attendant service" },
+    { icon: "luggage", label: "First Class Lounge Access", desc: "Private suites and spa at terminal" },
   ],
 }
 
 const CABIN_PRAISE: Record<CabinKey, { title: string; body: string }> = {
-  economy: { title: "Good pick", body: "Solid comfort for the price." },
-  premium_economy: { title: "Smart upgrade", body: "More room, small step up in cost." },
-  business: { title: "Great choice!", body: "You're travelling in serious comfort." },
-  first: { title: "Excellent choice!", body: "You're enjoying the finest experience in the sky." },
+  economy: { title: "Smart Standard Selection", body: "Optimal balance of value and high cabin comfort." },
+  premium_economy: { title: "Premium Comfort Upgrade", body: "Generous extra legroom and priority boarding privileges." },
+  business: { title: "Executive Class Reserved", body: "Traveling in maximum luxury with lie-flat relaxation." },
+  first: { title: "First Class Suite Reserved", body: "The pinnacle of private aviation comfort in the sky." },
 }
 
-// Colours cycling per passenger index
 const PAX_COLORS = [
-  { ring: "border-cyan-400",   bg: "bg-cyan-400/10",   text: "text-cyan-300",   badge: "bg-cyan-400/20 text-cyan-200",   dot: "bg-cyan-400",   glow: "shadow-[0_0_18px_rgba(34,211,238,0.35)]"   },
-  { ring: "border-violet-400", bg: "bg-violet-400/10", text: "text-violet-300", badge: "bg-violet-400/20 text-violet-200", dot: "bg-violet-400", glow: "shadow-[0_0_18px_rgba(167,139,250,0.35)]" },
-  { ring: "border-rose-400",   bg: "bg-rose-400/10",   text: "text-rose-300",   badge: "bg-rose-400/20 text-rose-200",   dot: "bg-rose-400",   glow: "shadow-[0_0_18px_rgba(251,113,133,0.35)]"  },
-  { ring: "border-emerald-400",bg: "bg-emerald-400/10",text: "text-emerald-300",badge: "bg-emerald-400/20 text-emerald-200",dot: "bg-emerald-400",glow: "shadow-[0_0_18px_rgba(52,211,153,0.35)]"  },
+  { ring: "border-cyan-400",   bg: "bg-cyan-400/10",   text: "text-cyan-300",   badge: "bg-cyan-400/20 text-cyan-200 border-cyan-400/30",   dot: "bg-cyan-400",   glow: "shadow-[0_0_18px_rgba(34,211,238,0.35)]"   },
+  { ring: "border-amber-400",  bg: "bg-amber-400/10",  text: "text-amber-300",  badge: "bg-amber-400/20 text-amber-200 border-amber-400/30",  dot: "bg-amber-400",  glow: "shadow-[0_0_18px_rgba(251,191,36,0.35)]"  },
+  { ring: "border-violet-400", bg: "bg-violet-400/10", text: "text-violet-300", badge: "bg-violet-400/20 text-violet-200 border-violet-400/30", dot: "bg-violet-400", glow: "shadow-[0_0_18px_rgba(167,139,250,0.35)]" },
+  { ring: "border-emerald-400",bg: "bg-emerald-400/10",text: "text-emerald-300",badge: "bg-emerald-400/20 text-emerald-200 border-emerald-400/30",dot: "bg-emerald-400",glow: "shadow-[0_0_18px_rgba(52,211,153,0.35)]"  },
 ]
 
 function paxColor(index: number) {
@@ -268,7 +283,7 @@ function paxColor(index: number) {
 }
 
 // ---------------------------------------------------------------------------
-// Page
+// Page Component
 // ---------------------------------------------------------------------------
 
 export default function SeatSelectionPage() {
@@ -298,14 +313,64 @@ export default function SeatSelectionPage() {
   const [skipErrorMessage, setSkipErrorMessage] = useState<string | null>(null)
   const [skipPartialNote, setSkipPartialNote] = useState<string | null>(null)
 
+  // 1. Load checkout selection from storage or support demo=1 query parameter
   useEffect(() => {
     try {
-      const raw = sessionStorage.getItem(STORAGE_KEY)
+      let raw = sessionStorage.getItem(STORAGE_KEY)
+      if (!raw && typeof window !== "undefined" && window.location.search.includes("demo=1")) {
+        const mockSelection: CheckoutSelection = {
+          bookingId: "demo-booking-123",
+          departFlight: {
+            id: "54d600c7-aca1-4aa9-897e-43d433f827c7",
+            flight_instance_id: "54d600c7-aca1-4aa9-897e-43d433f827c7",
+            airline: "Akasa Air",
+            origin: "DEL",
+            destination: "BLR",
+            departure_time: "21:15",
+            arrival_time: "00:00",
+            aircraft: "A320",
+            stops: 0,
+            final_price: 5104,
+            duration: "2h 45m",
+            travel_date: "2026-10-19",
+          },
+          returnFlight: {
+            id: "261d2701-4de0-4cc4-8853-1dac9bbb3421",
+            flight_instance_id: "261d2701-4de0-4cc4-8853-1dac9bbb3421",
+            airline: "Akasa Air",
+            origin: "BLR",
+            destination: "DEL",
+            departure_time: "07:30",
+            arrival_time: "10:15",
+            aircraft: "A320",
+            stops: 0,
+            final_price: 5104,
+            duration: "2h 45m",
+            travel_date: "2026-10-24",
+          },
+          passengers: 1,
+          mode: "roundtrip",
+          totalPrice: 10208,
+          origin: "DEL",
+          destination: "BLR",
+          savedAt: Date.now(),
+          savedPassengers: [
+            {
+              id: "pax-1",
+              first_name: "Shreya",
+              last_name: "viralam",
+              passenger_type: "adult",
+              is_primary_contact: true,
+            },
+          ],
+        }
+        raw = JSON.stringify(mockSelection)
+        sessionStorage.setItem(STORAGE_KEY, raw)
+      }
+
       if (!raw) { setLoadState("missing"); return }
       const parsed = JSON.parse(raw) as CheckoutSelection
       if (!parsed.bookingId) { setLoadState("missing"); return }
-
-      console.log("[seats] savedPassengers from storage:", parsed.savedPassengers)
 
       setSelection(parsed)
       setLoadState("found")
@@ -315,8 +380,14 @@ export default function SeatSelectionPage() {
     }
   }, [])
 
+  // 2. Fetch passengers for booking
   useEffect(() => {
     if (loadState !== "found" || !selection?.bookingId) return
+
+    if (selection.bookingId === "demo-booking-123" && selection.savedPassengers) {
+      setFetchedPassengers(selection.savedPassengers)
+      return
+    }
 
     let cancelled = false
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
@@ -329,17 +400,17 @@ export default function SeatSelectionPage() {
         if (cancelled || !data) return
         const rows: StoredPassenger[] | undefined = data.passengers ?? data
         if (Array.isArray(rows) && rows.length) {
-          console.log("[seats] passengers fetched from API:", rows)
           setFetchedPassengers(rows)
         }
       })
-      .catch((err) => console.warn("[seats] passenger fetch failed, keeping sessionStorage/placeholder names:", err))
+      .catch((err) => console.warn("[seats] passenger fetch failed:", err))
 
     return () => {
       cancelled = true
     }
   }, [loadState, selection])
 
+  // 3. Fetch seat maps for departure and return legs
   useEffect(() => {
     if (loadState !== "found" || !selection) return
 
@@ -359,15 +430,11 @@ export default function SeatSelectionPage() {
           legsToFetch.map(async ({ flight, label }) => {
             const instanceId = String(flight.flight_instance_id ?? flight.id)
 
-            console.log(`[seats] fetching seat map for ${label} leg, instanceId:`, instanceId)
-
             const res = await fetch(
               `/api/flights/${instanceId}/seats?bookingId=${selection.bookingId}`
             )
             const data = await res.json()
             if (!res.ok) throw new Error(data?.error || `Failed to load seats for ${label.toLowerCase()} flight`)
-
-            console.log(`[seats] ${label} leg hasSeatMap:`, data.hasSeatMap, "seat count:", data.seats?.length ?? 0)
 
             return {
               flightInstanceId: instanceId,
@@ -450,7 +517,7 @@ export default function SeatSelectionPage() {
         if (seat) total += seat.price
       })
     })
-    return total
+    return Math.round(total)
   }, [legs, passengers, picks])
 
   const seatsSelectedCount = useMemo(() => {
@@ -617,11 +684,6 @@ export default function SeatSelectionPage() {
     }
   }
 
-  // ✅ NEW: Edit Flight — releases any seats this booking already holds
-  // (matters if the traveler saved seats, moved on to add-ons/payment, then
-  // came back here and now wants a different flight entirely) and sends
-  // them back to search with the original query prefilled, same pattern as
-  // the add-ons page's version of this handler.
   async function handleEditFlight() {
     if (!selection?.bookingId) {
       if (selection) router.push(buildFlightSearchUrl(selection))
@@ -635,8 +697,6 @@ export default function SeatSelectionPage() {
       })
     } catch (err) {
       console.warn("Failed to release held seats before editing flight:", err)
-      // Navigate anyway — worst case any hold expires on its own; we don't
-      // want a failed release to trap the traveler on this page.
     }
     router.push(buildFlightSearchUrl(selection))
   }
@@ -658,7 +718,7 @@ export default function SeatSelectionPage() {
                 const seatId = picks[`${originalIndex}:${p.id}`]
                 const seat = leg.seats.find((s) => s.id === seatId)
                 if (!seat) return null
-                return { passengerId: p.id, seatId: seat.id, seatNumber: seat.seatNumber, price: seat.price }
+                return { passengerId: p.id, seatId: seat.id, seatNumber: seat.seatNumber, price: Math.round(seat.price) }
               })
               .filter((s): s is NonNullable<typeof s> => s !== null),
           })),
@@ -711,19 +771,28 @@ export default function SeatSelectionPage() {
   }
 
   if (loadState === "loading") {
-    return <PageShell><CenteredMessage text="Preparing your itinerary…" /></PageShell>
+    return (
+      <PageShell>
+        <CenteredMessage text="Initializing cockpit telemetry & seat map…" />
+      </PageShell>
+    )
   }
 
   if (loadState === "missing" || !selection) {
     return (
       <PageShell>
-        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
-          <p className="text-slate-400">We couldn't find an active booking with passenger details saved.</p>
+        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 text-center px-4">
+          <div className="w-14 h-14 rounded-2xl bg-amber-400/10 border border-amber-400/25 flex items-center justify-center text-amber-300">
+            <Ticket className="w-7 h-7" />
+          </div>
+          <p className="text-slate-300 font-display font-bold text-lg">We couldn't find an active booking session</p>
+          <p className="text-sm text-slate-500 max-w-md">Please complete passenger details or start a fresh flight search to assign seats.</p>
           <button
             onClick={() => router.push("/checkout/passengers")}
-            className="px-6 py-3 rounded-xl gold-cta font-semibold"
+            className="px-6 py-3 rounded-full gold-cta font-semibold text-sm mt-2 flex items-center gap-2 cursor-pointer"
           >
-            Go to Passenger Details
+            <span>Go to Passenger Details</span>
+            <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       </PageShell>
@@ -733,7 +802,7 @@ export default function SeatSelectionPage() {
   if (legsLoading) {
     return (
       <PageShell selection={selection} router={router}>
-        <CenteredMessage text="Loading seat maps…" />
+        <CenteredMessage text="Loading live aircraft cabin layout…" />
       </PageShell>
     )
   }
@@ -741,11 +810,14 @@ export default function SeatSelectionPage() {
   if (legsError) {
     return (
       <PageShell selection={selection} router={router}>
-        <div className="min-h-[50vh] flex flex-col items-center justify-center gap-4">
-          <p className="text-slate-300">{legsError}</p>
+        <div className="min-h-[50vh] flex flex-col items-center justify-center gap-4 text-center px-4">
+          <div className="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/25 flex items-center justify-center text-rose-300">
+            <AlertCircle className="w-7 h-7" />
+          </div>
+          <p className="text-slate-300 font-display font-bold text-lg">{legsError}</p>
           <button
             onClick={() => router.refresh()}
-            className="px-6 py-3 rounded-xl bg-white/10 text-white font-medium hover:bg-white/15 transition-colors"
+            className="px-6 py-2.5 rounded-full bg-white/10 text-white font-medium hover:bg-white/15 transition-all text-sm cursor-pointer"
           >
             Try again
           </button>
@@ -756,42 +828,44 @@ export default function SeatSelectionPage() {
 
   const cabinMeta = CABIN_CLASSES.find((c) => c.key === activeCabin)
   const activeLegFlight = legs[activeLegIndex]?.flight ?? selection.departFlight
-  const activeLegLabel = legs[activeLegIndex]?.label ?? (legs.length > 1 ? "Departure" : undefined)
+  const isRoundTrip = legs.length > 1
 
   return (
     <PageShell selection={selection} router={router}>
-      {legs.length > 1 && (
-        <Tabs
-          value={String(activeLegIndex)}
-          onValueChange={(v) => setActiveLegIndex(Number(v))}
-          className="mb-5"
-        >
-          <TabsList className="h-auto bg-white/[0.03] border border-white/[0.06] rounded-full p-1.5 gap-1">
-            {legs.map((leg, i) => (
-              <TabsTrigger
-                key={leg.flightInstanceId}
-                value={String(i)}
-                className="rounded-full px-4 py-1.5 text-sm font-medium text-slate-400 data-[state=active]:text-[#060B14] data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-300 data-[state=active]:via-amber-400 data-[state=active]:to-amber-500 data-[state=active]:shadow-[0_2px_12px_rgba(251,191,36,0.35)]"
-              >
-                {leg.label} · {leg.flight.origin} → {leg.flight.destination}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+      {/* 1. AEROSPACE LEG SELECTOR DECK (Only if roundtrip) */}
+      {isRoundTrip && (
+        <div className="mb-4">
+          <LegSelectorDeck
+            legs={legs}
+            activeIndex={activeLegIndex}
+            onChangeIndex={setActiveLegIndex}
+            passengers={passengers}
+            picks={picks}
+          />
+        </div>
       )}
 
-      <FlightInfoBar flight={activeLegFlight} legLabel={activeLegLabel} onEditFlight={handleEditFlight} />
+      {/* 2. LUXURY BOARDING PASS TICKET STUB FLIGHT HEADER */}
+      <FlightTicketHeader
+        flight={activeLegFlight}
+        legLabel={legs[activeLegIndex]?.label ?? (isRoundTrip ? "Departure" : undefined)}
+        isReturn={activeLegIndex === 1}
+        onEditFlight={handleEditFlight}
+      />
 
+      {/* 3. THREE-COLUMN COCKPIT SEAT SELECTION LAYOUT */}
       <div className="grid grid-cols-12 gap-6 mt-6">
+        {/* LEFT COLUMN: Cabin Tiers & Aircraft Specs */}
         <div className="col-span-12 lg:col-span-3 space-y-4">
           <CabinClassRail
             cabins={availableCabins}
             active={activeCabin}
             onChange={setActiveCabin}
           />
-          <AircraftCard flight={activeLegFlight} activeCabin={activeCabin} />
+          <AircraftCockpitHudCard flight={activeLegFlight} activeCabin={activeCabin} />
         </div>
 
+        {/* CENTER COLUMN: Aircraft Cabin Fuselage & Seat Map */}
         <div className="col-span-12 lg:col-span-6 space-y-4">
           {activeLeg && !activeLeg.hasSeatMap ? (
             <NoSeatMapCard />
@@ -818,6 +892,7 @@ export default function SeatSelectionPage() {
           ) : null}
         </div>
 
+        {/* RIGHT COLUMN: Reservation Manifest & Total Price */}
         <div className="col-span-12 lg:col-span-3">
           <SeatSummary
             legs={legs}
@@ -838,13 +913,14 @@ export default function SeatSelectionPage() {
         </div>
       </div>
 
+      {/* Helper floating note if auto-assignment was partial */}
       {skipPartialNote && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] flex items-center gap-2.5 px-4 py-3 rounded-xl bg-[#0D1A2C] border border-[#D4AF37]/30 shadow-[0_12px_40px_rgba(0,0,0,0.4)]">
-          <span className="text-[#E8C766] text-sm shrink-0">⚠</span>
-          <p className="text-xs text-slate-300">{skipPartialNote}</p>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-[#0D1A2C] border border-[#D4AF37]/40 shadow-[0_12px_40px_rgba(0,0,0,0.6)] backdrop-blur-xl">
+          <span className="text-amber-400 text-base shrink-0">⚠</span>
+          <p className="text-xs text-slate-200">{skipPartialNote}</p>
           <button
             onClick={() => setSkipPartialNote(null)}
-            className="ml-2 text-slate-500 hover:text-slate-300 text-xs"
+            className="ml-3 text-slate-500 hover:text-white text-xs cursor-pointer"
             aria-label="Dismiss"
           >
             ✕
@@ -852,6 +928,7 @@ export default function SeatSelectionPage() {
         </div>
       )}
 
+      {/* Skip / Auto-Assign Modal */}
       {skipModalOpen && (
         <SkipSeatModal
           step={skipStep}
@@ -869,228 +946,232 @@ export default function SeatSelectionPage() {
 }
 
 // ---------------------------------------------------------------------------
-// SkipSeatModal
+// 1. LegSelectorDeck — Sleek Aerospace Switcher (Replaces loud yellow pill)
 // ---------------------------------------------------------------------------
 
-function SkipSeatModal({
-  step,
-  cabin,
-  errorMessage,
-  onCabinChange,
-  onCheck,
-  onBackToCabin,
-  onChooseMode,
-  onClose,
+function LegSelectorDeck({
+  legs,
+  activeIndex,
+  onChangeIndex,
+  passengers,
+  picks,
 }: {
-  step: "cabin" | "mode" | "error"
-  cabin: CabinKey
-  errorMessage: string | null
-  onCabinChange: (c: CabinKey) => void
-  onCheck: () => void
-  onBackToCabin: () => void
-  onChooseMode: (mode: "random" | "together") => void
-  onClose: () => void
+  legs: LegSeatMap[]
+  activeIndex: number
+  onChangeIndex: (i: number) => void
+  passengers: StoredPassenger[]
+  picks: SelectionMap
 }) {
   return (
-    <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
-      onClick={onClose}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-md bg-gradient-to-b from-[#0D1A2C] to-[#0A1424] border border-[#D4AF37]/20 rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.5)] overflow-hidden"
-      >
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 w-7 h-7 rounded-full flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/[0.06] transition-colors"
-          aria-label="Close"
-        >
-          ✕
-        </button>
+    <div className="flex flex-wrap items-center gap-3 p-1.5 rounded-2xl bg-[#0B1526]/80 border border-white/[0.08] backdrop-blur-xl shadow-[0_8px_24px_rgba(0,0,0,0.35)] w-fit">
+      {legs.map((leg, i) => {
+        const isActive = activeIndex === i
+        const isReturn = i === 1
+        const assignedCount = passengers.filter((p) => !!picks[`${i}:${p.id}`]).length
+        const isComplete = assignedCount === passengers.length
 
-        {step === "cabin" && (
-          <div className="p-6">
-            <p className="font-display text-lg font-semibold text-white mb-1">Skip seat selection</p>
-            <p className="text-sm text-slate-500 mb-5">
-              Pick a cabin and we'll assign seats for anyone who doesn't have one yet.
-            </p>
+        return (
+          <button
+            key={leg.flightInstanceId}
+            onClick={() => onChangeIndex(i)}
+            className={`group relative flex items-center gap-3.5 px-5 py-2.5 rounded-xl border transition-all duration-300 cursor-pointer ${
+              isActive
+                ? "bg-gradient-to-r from-[#11223B] via-[#0F1D33] to-[#0D1829] border-[#D4AF37]/80 shadow-[0_0_24px_rgba(212,175,55,0.22)]"
+                : "border-transparent bg-transparent hover:bg-white/[0.03] hover:border-white/10"
+            }`}
+          >
+            {/* Active Aura Spotlight */}
+            {isActive && (
+              <span
+                className="absolute inset-0 rounded-xl bg-gradient-to-r from-amber-400/[0.08] to-cyan-400/[0.05] pointer-events-none"
+                aria-hidden
+              />
+            )}
 
-            <div className="grid grid-cols-2 gap-2.5 mb-5">
-              {CABIN_CLASSES.map((c) => {
-                const isActive = cabin === c.key
-                return (
-                  <button
-                    key={c.key}
-                    onClick={() => onCabinChange(c.key)}
-                    className={`flex flex-col items-start gap-1 px-3.5 py-3 rounded-xl border text-left transition-all ${
-                      isActive
-                        ? "border-[#D4AF37]/60 bg-[#D4AF37]/[0.08]"
-                        : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
-                    }`}
-                  >
-                    <span className={`text-xs font-medium ${isActive ? "text-[#E8C766]" : "text-slate-300"}`}>
-                      {c.label}
-                    </span>
-                    <span className={`text-[11px] ${isActive ? "text-[#C9A227]/80" : "text-slate-600"}`}>
-                      from ₹{c.fromPrice.toLocaleString("en-IN")}
-                    </span>
-                  </button>
-                )
-              })}
+            {/* Radar status beacon */}
+            <div className="relative flex items-center justify-center shrink-0">
+              <span
+                className={`w-2.5 h-2.5 rounded-full ${
+                  isComplete
+                    ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"
+                    : isActive
+                    ? "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]"
+                    : "bg-slate-600"
+                }`}
+              />
             </div>
 
-            <button onClick={onCheck} className="w-full px-6 py-3 rounded-xl gold-cta font-semibold">
-              Check availability
-            </button>
-          </div>
-        )}
-
-        {step === "error" && (
-          <div className="p-6">
-            <div className="w-11 h-11 rounded-full bg-red-400/10 border border-red-400/20 flex items-center justify-center mb-4">
-              <span className="text-red-300 text-lg">!</span>
-            </div>
-            <p className="font-display text-base font-semibold text-white mb-1.5">Not enough seats there</p>
-            <p className="text-sm text-slate-400 mb-6">{errorMessage}</p>
-            <div className="flex gap-2.5">
-              <button
-                onClick={onBackToCabin}
-                className="flex-1 px-4 py-2.5 rounded-xl font-medium bg-white/[0.06] text-white hover:bg-white/[0.1] transition-colors"
-              >
-                Try another cabin
-              </button>
-              <button
-                onClick={onClose}
-                className="flex-1 px-4 py-2.5 rounded-xl font-medium border border-white/[0.1] text-slate-300 hover:bg-white/[0.04] transition-colors"
-              >
-                I'll pick manually
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === "mode" && (
-          <div className="p-6">
-            <p className="font-display text-lg font-semibold text-white mb-1">How should we seat everyone?</p>
-            <p className="text-sm text-slate-500 mb-5">
-              {CABIN_CLASSES.find((c) => c.key === cabin)?.label} has enough open seats — pick how to assign them.
-            </p>
-
-            <div className="space-y-2.5">
-              <button
-                onClick={() => onChooseMode("together")}
-                className="w-full flex items-start gap-3 px-4 py-3.5 rounded-xl border border-white/[0.08] bg-white/[0.02] hover:border-[#D4AF37]/50 hover:bg-[#D4AF37]/[0.05] transition-all text-left group"
-              >
-                <span className="w-9 h-9 rounded-lg bg-[#D4AF37]/10 flex items-center justify-center text-[#E8C766] shrink-0 group-hover:bg-[#D4AF37]/20 transition-colors">
-                  👥
+            {/* Route & Leg Telemetry */}
+            <div className="text-left">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`text-[10px] font-bold uppercase tracking-wider ${
+                    isActive ? "text-amber-300" : "text-slate-400"
+                  }`}
+                >
+                  {leg.label} Leg
                 </span>
-                <span>
-                  <span className="block text-sm font-medium text-white">Seated together</span>
-                  <span className="block text-[12px] text-slate-500 mt-0.5">
-                    Keep the group in the same row where possible
+                <span className="text-slate-600 text-xs">•</span>
+                <span
+                  className={`font-display font-black text-sm tracking-tight ${
+                    isActive ? "text-white" : "text-slate-300 group-hover:text-white"
+                  }`}
+                >
+                  {leg.flight.origin} → {leg.flight.destination}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                {isComplete ? (
+                  <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                    <Check className="w-3 h-3 inline" /> Seats Assigned ({assignedCount}/{passengers.length})
                   </span>
-                </span>
-              </button>
-
-              <button
-                onClick={() => onChooseMode("random")}
-                className="w-full flex items-start gap-3 px-4 py-3.5 rounded-xl border border-white/[0.08] bg-white/[0.02] hover:border-cyan-400/50 hover:bg-cyan-400/[0.05] transition-all text-left group"
-              >
-                <span className="w-9 h-9 rounded-lg bg-cyan-400/10 flex items-center justify-center text-cyan-300 shrink-0 group-hover:bg-cyan-400/20 transition-colors">
-                  🎲
-                </span>
-                <span>
-                  <span className="block text-sm font-medium text-white">Random seats</span>
-                  <span className="block text-[12px] text-slate-500 mt-0.5">
-                    Any available seat per passenger, fastest option
+                ) : (
+                  <span className={isActive ? "text-amber-300/80" : "text-slate-500"}>
+                    {assignedCount} of {passengers.length} assigned
                   </span>
-                </span>
-              </button>
+                )}
+              </p>
             </div>
-
-            <button
-              onClick={onBackToCabin}
-              className="w-full mt-4 text-xs text-slate-500 hover:text-slate-300 transition-colors"
-            >
-              ← Choose a different cabin
-            </button>
-          </div>
-        )}
-      </div>
+          </button>
+        )
+      })}
     </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// FlightInfoBar
+// 2. FlightTicketHeader — Boarding Pass Ticket Stub Architecture
 // ---------------------------------------------------------------------------
 
-function FlightInfoBar({ flight, legLabel, onEditFlight }: { flight: StoredFlight; legLabel?: string; onEditFlight?: () => void }) {
+function FlightTicketHeader({
+  flight,
+  legLabel,
+  isReturn,
+  onEditFlight,
+}: {
+  flight: StoredFlight
+  legLabel?: string
+  isReturn?: boolean
+  onEditFlight?: () => void
+}) {
+  const originCity = AIRPORT_CITIES[flight.origin] || flight.origin
+  const destCity = AIRPORT_CITIES[flight.destination] || flight.destination
+  const logo = airlineLogos[flight.airline] || "/airlines/default.png"
+  const flightNum = (flight as any).flight_number || "NAV-420"
+
   return (
-    <div>
-      {legLabel && (
-        <p className="text-[10px] uppercase tracking-[0.2em] text-[#C9A227]/90 font-medium mb-2 ml-1">
-          {legLabel}
-        </p>
-      )}
-      <div className="relative flex flex-wrap items-center gap-4 bg-gradient-to-r from-white/[0.04] to-white/[0.02] border border-[#D4AF37]/15 rounded-2xl px-5 py-4 shadow-[0_8px_24px_rgba(0,0,0,0.15)] ticket-edge">
-      <div className="flex items-center gap-2.5 min-w-[140px]">
-        <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center overflow-hidden shadow-sm ring-1 ring-black/5 shrink-0">
-          <img
-            src={airlineLogos[flight.airline] || "/airlines/default.png"}
-            alt={flight.airline}
-            className="w-6 h-6 object-contain"
-          />
-        </div>
-        <div>
-          <p className="text-xs font-medium text-white">{flight.airline} <span className="text-slate-500 font-normal">{flight.aircraft}</span></p>
-          <p className="text-[11px] text-slate-500">{flight.aircraft}</p>
-        </div>
-      </div>
+    <div className="relative bg-gradient-to-r from-[#0C1729]/95 via-[#0E1C33]/95 to-[#091220]/95 border border-white/[0.12] rounded-2xl p-4 sm:px-6 sm:py-3.5 shadow-[0_16px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl ticket-edge overflow-hidden">
+      {/* Signature Livery Strip */}
+      <div
+        className={`absolute top-0 bottom-0 left-0 w-1.5 bg-gradient-to-b ${
+          isReturn ? "from-cyan-400 via-blue-500 to-indigo-500" : "from-amber-300 via-amber-400 to-amber-600"
+        }`}
+      />
 
-      <div className="w-px h-8 bg-[#D4AF37]/15 hidden sm:block" />
-
-      <div className="flex items-center gap-3">
-        <div>
-          <p className="font-display text-lg font-semibold text-white tabular-nums">
-            {flight.origin} <span className="text-slate-300">{formatTime(flight.departure_time)}</span>
-          </p>
-          <p className="text-[11px] text-slate-500">{formatDateLabel(flight.departure_time, flight.travel_date) || "—"}</p>
-        </div>
-        <div className="flex flex-col items-center gap-0.5 px-2">
-          <p className="text-[10px] text-slate-500">{formatDuration(flight)}</p>
-          <div className="flex items-center gap-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-slate-600" />
-            <div className="w-16 h-px bg-gradient-to-r from-slate-600 to-[#D4AF37]/60" />
-            <span aria-hidden className="text-[#D4AF37] text-xs -mx-1">✈</span>
-            <div className="w-16 h-px bg-gradient-to-r from-[#D4AF37]/60 to-slate-600" />
-            <div className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]" />
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        {/* Left: Airline Branding & Model */}
+        <div className="flex items-center gap-3 min-w-[200px]">
+          <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center overflow-hidden shadow-md ring-1 ring-white/10 shrink-0 p-1">
+            <img src={logo} alt={flight.airline} className="w-7 h-7 object-contain" />
           </div>
-          <p className="text-[10px] text-[#C9A227]/80">{(flight.stops ?? 0) > 0 ? `${flight.stops} stop` : "Nonstop"}</p>
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="font-display font-black text-sm sm:text-base text-white tracking-tight">{flight.airline}</p>
+              <span className="font-mono text-[10px] font-bold text-slate-300 bg-white/[0.06] px-1.5 py-0.5 rounded border border-white/[0.08]">
+                {flightNum}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 font-medium">
+              {flight.aircraft} <span className="text-slate-600">•</span> Airbus Single-Aisle
+            </p>
+          </div>
         </div>
-        <div>
-          <p className="font-display text-lg font-semibold text-white tabular-nums">
-            {flight.destination} <span className="text-slate-300">{formatTime(flight.arrival_time)}</span>
-          </p>
-          <p className="text-[11px] text-slate-500">{formatDateLabel(flight.arrival_time, flight.travel_date) || "—"}</p>
-        </div>
-      </div>
 
-      <button
-        onClick={onEditFlight}
-        className="ml-auto text-xs text-slate-400 hover:text-[#E8C766] transition-colors flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/[0.08] hover:border-[#D4AF37]/30 hover:bg-[#D4AF37]/[0.04]"
-      >
-        Edit flight <span aria-hidden>✎</span>
-      </button>
+        {/* Center: Route Telemetry & Serene Flight Vector (No disturbing animation) */}
+        <div className="flex items-center gap-4 sm:gap-6 flex-1 justify-center max-w-xl">
+          {/* Origin */}
+          <div className="text-left shrink-0">
+            <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+              {originCity}
+            </p>
+            <div className="flex items-baseline gap-1 mt-0.5">
+              <span className="font-display text-xl sm:text-2xl font-black text-white tabular-nums">
+                {flight.origin}
+              </span>
+              <span className="text-xs sm:text-sm font-semibold text-slate-300 tabular-nums">
+                {formatTime(flight.departure_time)}
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-400 mt-0.5 font-medium">
+              {formatDateLabel(flight.departure_time, flight.travel_date) || "Mon, 19 Oct"}
+            </p>
+          </div>
+
+          {/* Timeline Vector — Serene & Clean without disturbing animations */}
+          <div className="flex flex-col items-center flex-1 max-w-[200px] px-2">
+            <span className="text-[10.5px] text-slate-300 font-extrabold tracking-wide mb-1 font-mono">
+              {formatDuration(flight)}
+            </span>
+            <div className="flex items-center w-full max-w-[170px] gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 ring-2 ring-cyan-400/20 shrink-0" />
+              <div className="h-[2px] flex-1 bg-gradient-to-r from-cyan-400/60 via-amber-400/80 to-amber-400/60 rounded-full" />
+              <span aria-hidden className="text-amber-300 text-xs shrink-0 select-none">✈</span>
+              <div className="h-[2px] flex-1 bg-gradient-to-r from-amber-400/60 via-emerald-400/80 to-emerald-400/60 rounded-full" />
+              <span className="w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/20 shrink-0" />
+            </div>
+            <span className="text-[9.5px] text-emerald-400 font-bold mt-1 uppercase tracking-wider">
+              {(flight.stops ?? 0) > 0 ? `${flight.stops} Stop` : "Nonstop"}
+            </span>
+          </div>
+
+          {/* Destination */}
+          <div className="text-right shrink-0">
+            <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
+              {destCity}
+            </p>
+            <div className="flex items-baseline justify-end gap-1 mt-0.5">
+              <span className="font-display text-xl sm:text-2xl font-black text-white tabular-nums">
+                {flight.destination}
+              </span>
+              <span className="text-xs sm:text-sm font-semibold text-slate-300 tabular-nums">
+                {formatTime(flight.arrival_time)}
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-400 mt-0.5 font-medium">
+              {formatDateLabel(flight.arrival_time, flight.travel_date) || "Mon, 19 Oct"}
+            </p>
+          </div>
+        </div>
+
+        {/* Right: Leg Pill & Edit Flight CTA */}
+        <div className="flex items-center gap-2.5 ml-auto">
+          {legLabel && (
+            <span
+              className={`text-[10px] uppercase tracking-wider font-black rounded-full px-3 py-1 border flex items-center gap-1.5 ${
+                isReturn
+                  ? "text-cyan-300 bg-cyan-400/15 border-cyan-400/30"
+                  : "text-amber-300 bg-amber-400/15 border-amber-400/30"
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${isReturn ? "bg-cyan-400" : "bg-amber-400"}`} />
+              {legLabel}
+            </span>
+          )}
+          <button
+            onClick={onEditFlight}
+            className="text-xs text-slate-300 hover:text-white transition-all flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 hover:border-amber-400/40 bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer"
+          >
+            <span>Edit flight</span>
+            <span aria-hidden>✎</span>
+          </button>
+        </div>
       </div>
     </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// CabinClassRail — roman-numeral tier badges (I–IV) replace the generic
-// icon-in-a-box: cabin classes are a real ascending hierarchy, so the
-// numbering encodes that order instead of decorating.
+// 3. CabinClassRail — Cockpit Flight Deck Class Controller (Left Column)
 // ---------------------------------------------------------------------------
 
 function CabinClassRail({
@@ -1103,38 +1184,55 @@ function CabinClassRail({
   onChange: (k: CabinKey) => void
 }) {
   return (
-    <div className="bg-[#0D1A2C]/60 border border-[#D4AF37]/10 rounded-2xl p-4">
-      <p className="font-display text-sm font-semibold text-white mb-0.5">Choose Your Tier</p>
-      <p className="text-[11px] text-slate-500 mb-4 uppercase tracking-wider">Economy → First</p>
+    <div className="relative bg-gradient-to-b from-[#0C1729]/95 to-[#091220]/95 border border-white/[0.1] rounded-2xl p-4 shadow-[0_12px_32px_rgba(0,0,0,0.35)] ticket-edge">
+      <div className="flex items-center justify-between mb-1">
+        <p className="font-display text-sm font-bold text-white tracking-wide">Choose Your Tier</p>
+        <span className="text-[10px] uppercase font-bold tracking-widest text-amber-400/80">I → IV</span>
+      </div>
+      <p className="text-[11px] text-slate-400 mb-3.5">Select cabin to view corresponding seat map</p>
 
-      <div className="space-y-2.5">
+      <div className="space-y-1.5">
         {cabins.map((c) => {
           const isActive = active === c.key
           return (
             <button
               key={c.key}
               onClick={() => onChange(c.key)}
-              className={`cabin-row relative w-full flex items-center gap-3 px-3.5 py-3 rounded-xl border text-left transition-all duration-200 ${
+              className={`cabin-row group relative w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
                 isActive
-                  ? "bg-[#D4AF37]/[0.06] border-[#D4AF37]/60 shadow-[0_0_24px_rgba(212,175,55,0.12)]"
-                  : "border-white/[0.08] bg-white/[0.015] hover:border-white/20 hover:bg-white/[0.03]"
+                  ? "bg-gradient-to-r from-amber-400/[0.12] via-amber-400/[0.06] to-transparent border-[#D4AF37] shadow-[0_0_24px_rgba(212,175,55,0.18)]"
+                  : "border-white/[0.06] bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
               }`}
             >
-              <span className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 font-display text-sm font-semibold ${
-                isActive ? "bg-[#D4AF37]/15 text-[#E8C766]" : "bg-white/[0.04] text-slate-500"
-              }`}>
+              {/* Roman numeral metal badge */}
+              <span
+                className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 font-display text-xs font-black border transition-all ${
+                  isActive
+                    ? "bg-gradient-to-br from-amber-300 via-amber-400 to-amber-600 text-[#060B14] border-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.4)]"
+                    : "bg-white/[0.04] text-slate-400 border-white/[0.08] group-hover:text-slate-200"
+                }`}
+              >
                 {c.tier}
               </span>
-              <span className="min-w-0">
-                <span className={`block text-sm font-medium truncate ${isActive ? "text-white" : "text-slate-300"}`}>
-                  {c.label}
+
+              {/* Title, Pitch & Price */}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-1">
+                  <span className={`block text-xs font-bold truncate ${isActive ? "text-white" : "text-slate-300"}`}>
+                    {c.label}
+                  </span>
+                  <span className={`text-[11px] font-mono font-bold tabular-nums ${isActive ? "text-amber-300" : "text-slate-400"}`}>
+                    ₹{c.fromPrice.toLocaleString("en-IN")}
+                  </span>
+                </div>
+                <span className={`block text-[10px] mt-0.5 truncate ${isActive ? "text-amber-200/80" : "text-slate-500"}`}>
+                  {c.pitch}
                 </span>
-                <span className={`block text-[11px] ${isActive ? "text-[#C9A227]/80" : "text-slate-500"}`}>
-                  from ₹{c.fromPrice.toLocaleString("en-IN")}
-                </span>
-              </span>
+              </div>
+
+              {/* Active check pill */}
               {isActive && (
-                <span className="ml-auto w-5 h-5 rounded-md bg-[#D4AF37] text-[#060B14] flex items-center justify-center text-[11px] font-bold shrink-0">
+                <span className="w-5 h-5 rounded-full bg-[#D4AF37] text-[#060B14] flex items-center justify-center text-[10px] font-bold shrink-0 shadow-sm">
                   ✓
                 </span>
               )}
@@ -1146,21 +1244,52 @@ function CabinClassRail({
   )
 }
 
-function AircraftCard({ flight, activeCabin }: { flight: StoredFlight; activeCabin: CabinKey }) {
+// ---------------------------------------------------------------------------
+// 4. AircraftCockpitHudCard — Specifications & Cabin Amenities HUD (Left Column)
+// ---------------------------------------------------------------------------
+
+function AircraftCockpitHudCard({ flight, activeCabin }: { flight: StoredFlight; activeCabin: CabinKey }) {
+  const perks = CABIN_PERKS[activeCabin]
+
+  function renderIcon(icon: string) {
+    switch (icon) {
+      case "wifi":
+        return <Wifi className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+      case "zap":
+        return <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+      case "armchair":
+        return <Armchair className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+      case "coffee":
+        return <Coffee className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+      case "luggage":
+        return <Luggage className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+      default:
+        return <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+    }
+  }
+
   return (
-    <div className="bg-[#0D1A2C]/60 border border-[#D4AF37]/10 rounded-2xl p-4">
-      <div className="flex items-center gap-2.5 mb-3">
-        <span className="w-8 h-8 rounded-lg bg-white/[0.05] flex items-center justify-center text-[#C9A227]/80 text-sm">✈</span>
+    <div className="relative bg-gradient-to-b from-[#0C1729]/95 to-[#091220]/95 border border-white/[0.1] rounded-2xl p-4 shadow-[0_12px_32px_rgba(0,0,0,0.35)] ticket-edge">
+      {/* Aircraft Telemetry Header */}
+      <div className="flex items-center gap-3 mb-3 pb-2.5 border-b border-white/[0.08]">
+        <div className="w-8 h-8 rounded-xl bg-amber-400/10 border border-amber-400/25 flex items-center justify-center text-amber-400 text-sm shrink-0">
+          <Plane className="w-4 h-4" />
+        </div>
         <div>
-          <p className="text-sm font-medium text-white">{flight.aircraft}</p>
-          <button className="text-[11px] text-[#C9A227]/80 hover:text-[#E8C766] transition-colors">View aircraft details →</button>
+          <p className="text-xs font-bold text-white tracking-tight">{flight.aircraft || "Airbus A320-200"}</p>
+          <p className="text-[10px] text-slate-400 font-mono">Mach 0.82 • 36,000 ft Cruise</p>
         </div>
       </div>
-      <div className="space-y-2 pt-2 border-t border-[#D4AF37]/10">
-        {CABIN_PERKS[activeCabin].map((perk) => (
-          <div key={perk.label} className="flex items-center gap-2.5 text-[12px] text-slate-400">
-            <span className="text-[#C9A227]/60 w-4 text-center shrink-0">{perk.icon}</span>
-            {perk.label}
+
+      {/* Perks 2x2 Grid */}
+      <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
+        Cabin Inclusions
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        {perks.map((perk) => (
+          <div key={perk.label} className="p-2 rounded-xl bg-white/[0.02] border border-white/[0.06] flex items-center gap-2">
+            <div className="shrink-0">{renderIcon(perk.icon)}</div>
+            <p className="text-[10px] font-semibold text-slate-200 truncate">{perk.label}</p>
           </div>
         ))}
       </div>
@@ -1169,35 +1298,7 @@ function AircraftCard({ flight, activeCabin }: { flight: StoredFlight; activeCab
 }
 
 // ---------------------------------------------------------------------------
-// NoSeatMapCard / EmptyCabinCard
-// ---------------------------------------------------------------------------
-
-function NoSeatMapCard() {
-  return (
-    <div className="bg-[#0D1A2C]/80 border border-[#D4AF37]/10 rounded-2xl p-10 text-center">
-      <div className="w-12 h-12 rounded-full bg-white/[0.04] border border-white/10 flex items-center justify-center mx-auto mb-4 text-xl">
-        ✈
-      </div>
-      <p className="text-slate-300">Seat selection isn't available for this flight yet.</p>
-      <p className="text-sm text-slate-500 mt-2">Seats will be assigned at check-in.</p>
-    </div>
-  )
-}
-
-function EmptyCabinCard({ cabinLabel }: { cabinLabel: string }) {
-  return (
-    <div className="bg-[#0D1A2C]/80 border border-[#D4AF37]/10 rounded-2xl p-10 text-center">
-      <div className="w-12 h-12 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/20 flex items-center justify-center mx-auto mb-4 text-xl">
-        ⊘
-      </div>
-      <p className="text-slate-300">No {cabinLabel} seats are available on this flight.</p>
-      <p className="text-sm text-slate-500 mt-2">Try a different cabin class on the left.</p>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// SeatMapCard
+// 5. SeatMapCard — Cinematic Aircraft Cabin Fuselage & Interactive Seats
 // ---------------------------------------------------------------------------
 
 function groupByAisle(sortedCols: ApiSeat[]): ApiSeat[][] {
@@ -1317,13 +1418,23 @@ function SeatMapCard({
         </div>
       </div>
 
-      <div className="relative flex justify-center pt-6 pb-2">
-        <div className="flex flex-col items-center gap-2">
-          <svg width="32" height="16" viewBox="0 0 36 18" fill="none">
-            <path d="M18 0L35 17H1L18 0Z" fill="currentColor" className="text-[#D4AF37]/20" />
-            <path d="M18 5L27 14H9L18 5Z" fill="currentColor" className="text-[#D4AF37]/55" />
-          </svg>
-          <span className="w-2 h-2 rounded-full bg-cyan-300 shadow-[0_0_10px_rgba(103,232,249,0.8)]" />
+      {/* Aerodynamic Cockpit Nose Cone & Forward Cabin Header */}
+      <div className="relative flex flex-col items-center pt-5 pb-2">
+        <div className="relative w-40 h-12 flex flex-col items-center justify-center border-t border-x border-[#D4AF37]/30 rounded-t-full bg-gradient-to-b from-[#D4AF37]/[0.08] to-transparent shadow-[inset_0_3px_10px_rgba(212,175,55,0.06)]">
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+            <span className="text-[9px] uppercase font-bold tracking-widest text-[#E8C766]">Cockpit Deck</span>
+          </div>
+          <span className="text-[9px] font-mono text-slate-400">HEADING 184° • A320</span>
+          {/* Subtle windshield contour */}
+          <div className="absolute top-1 w-20 h-0.5 rounded-full bg-cyan-400/30 blur-[1px]" />
+        </div>
+
+        {/* Forward Galley & Lavatory Indicators */}
+        <div className="flex items-center justify-between w-60 pt-1.5 text-[10px] text-slate-400 font-medium border-b border-white/[0.06] pb-1.5">
+          <span className="flex items-center gap-1 text-slate-400">🚻 FWD Lavatory</span>
+          <span className="text-[#D4AF37]/80 font-mono text-[9px] font-bold">▲ FORWARD ▲</span>
+          <span className="flex items-center gap-1 text-slate-400">🍽 FWD Galley</span>
         </div>
       </div>
 
@@ -1353,50 +1464,60 @@ function SeatMapCard({
           {rows.map(([rowNum, rowSeats], rowIdx) => {
             const sorted = [...rowSeats].sort((a, b) => a.col.localeCompare(b.col))
             const groups = groupByAisle(sorted)
+            const isExitRow = rowNum === 12 || rowNum === 14
             return (
-              <div
-                key={rowNum}
-                className={`flex items-center gap-8 rounded-xl ${rowIdx % 2 === 0 ? "bg-white/[0.012]" : ""}`}
-                style={{ paddingBlock: Math.max(2, scaledPod * 0.04) }}
-              >
-                <span className="w-5 text-right text-[11px] text-[#C9A227]/60 font-display tabular-nums shrink-0">{rowNum}</span>
-                {groups.map((group, gi) => (
-                  <div key={gi} className="flex items-center" style={{ gap: Math.max(6, scaledPod * 0.12) }}>
-                    {group.map((seat) => {
-                      const ownerIdx = seatOwnerMap[seat.id]
-                      const isMe = picks[`${activeLegIndex}:${activePassenger.id}`] === seat.id
-                      const isOtherPax = ownerIdx !== undefined && !isMe
-                      const color = ownerIdx !== undefined ? paxColor(ownerIdx) : null
-
-                      return (
-                        <GoldSeatPod
-                          key={seat.id}
-                          seat={seat}
-                          size={scaledPod}
-                          cabin={activeCabin}
-                          isMe={isMe}
-                          isOtherPax={isOtherPax}
-                          color={color}
-                          onClick={() => onSelectSeat(seat)}
-                        />
-                      )
-                    })}
+              <div key={rowNum} className="flex flex-col items-center">
+                {isExitRow && (
+                  <div className="flex items-center justify-center gap-2 my-1 py-0.5 px-3 rounded-md bg-[#D4AF37]/[0.07] border border-[#D4AF37]/25 mb-1.5">
+                    <span className="text-[#E8C766] text-[10px]">🚪</span>
+                    <span className="text-[9px] font-bold text-[#E8C766] uppercase tracking-widest font-mono">
+                      Overwing Emergency Exit • Extra Legroom
+                    </span>
+                    <span className="text-[#E8C766] text-[10px]">🚪</span>
                   </div>
-                ))}
+                )}
+                <div
+                  className={`flex items-center gap-8 rounded-xl ${rowIdx % 2 === 0 ? "bg-white/[0.012]" : ""}`}
+                  style={{ paddingBlock: Math.max(2, scaledPod * 0.04) }}
+                >
+                  <span className="w-5 text-right text-[11px] text-[#C9A227]/60 font-display tabular-nums shrink-0">{rowNum}</span>
+                  {groups.map((group, gi) => (
+                    <div key={gi} className="flex items-center" style={{ gap: Math.max(6, scaledPod * 0.12) }}>
+                      {group.map((seat) => {
+                        const ownerIdx = seatOwnerMap[seat.id]
+                        const isMe = picks[`${activeLegIndex}:${activePassenger.id}`] === seat.id
+                        const isOtherPax = ownerIdx !== undefined && !isMe
+                        const color = ownerIdx !== undefined ? paxColor(ownerIdx) : null
+
+                        return (
+                          <GoldSeatPod
+                            key={seat.id}
+                            seat={seat}
+                            size={scaledPod}
+                            cabin={activeCabin}
+                            isMe={isMe}
+                            isOtherPax={isOtherPax}
+                            color={color}
+                            onClick={() => onSelectSeat(seat)}
+                          />
+                        )
+                      })}
+                    </div>
+                  ))}
+                  <span className="w-5 text-left text-[11px] text-[#C9A227]/60 font-display tabular-nums shrink-0">{rowNum}</span>
+                </div>
               </div>
             )
           })}
         </div>
 
-        <div className="flex items-center justify-between mt-8 px-2">
-          <span className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-white/[0.08] text-violet-300/70 text-xs">
-            🚻
+        <div className="flex items-center justify-between mt-8 px-6 text-[10px] text-slate-400 font-medium border-t border-white/[0.06] pt-3">
+          <span className="flex items-center gap-1.5 text-slate-400">
+            <span>🚻</span> AFT Lavatory
           </span>
-          <span className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-white/[0.08] text-slate-400 text-xs">
-            🍽
-          </span>
-          <span className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-white/[0.08] text-violet-300/70 text-xs">
-            🚻
+          <span className="text-slate-500 font-mono text-[9px]">▼ AFT ▼</span>
+          <span className="flex items-center gap-1.5 text-slate-400">
+            <span>🚪</span> AFT Exit
           </span>
         </div>
       </div>
@@ -1428,11 +1549,6 @@ function SeatMapCard({
   )
 }
 
-// ---------------------------------------------------------------------------
-// SeatIcon — a real seat-back silhouette used inside pods and legend chips,
-// so the "available" state reads as a seat rather than a generic "+".
-// ---------------------------------------------------------------------------
-
 function SeatIcon({ size, className, filled = false }: { size: number; className?: string; filled?: boolean }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
@@ -1447,13 +1563,6 @@ function SeatIcon({ size, className, filled = false }: { size: number; className
     </svg>
   )
 }
-
-// ---------------------------------------------------------------------------
-// GoldSeatPod — economy / premium-economy pod reshaped into a real seat-back
-// silhouette (rounded headrest, narrower base) instead of a flat square, with
-// the same gold gradient as the primary CTA on selection and a fine diagonal
-// hatch on booked seats so "taken" reads as texture, not just a dim square.
-// ---------------------------------------------------------------------------
 
 function GoldSeatPod({
   seat,
@@ -1541,7 +1650,7 @@ function GoldSeatPod({
     <button
       onClick={onClick}
       disabled={taken}
-      title={`${seat.seatNumber}${isExtraLegroom ? " · Extra legroom" : ""}${seat.price > 0 ? ` · +₹${seat.price.toLocaleString("en-IN")}` : ""}`}
+      title={`${seat.seatNumber}${isExtraLegroom ? " · Extra legroom" : ""}${seat.price > 0 ? ` · +₹${Math.round(seat.price).toLocaleString("en-IN")}` : ""}`}
       style={style}
       className={`seat-btn relative flex items-center justify-center transition-all duration-150 group shrink-0 border-2 rounded-t-[42%] rounded-b-[16%] ${borderClass} ${otherPaxBgClass} ${
         taken ? "cursor-not-allowed" : "cursor-pointer hover:-translate-y-0.5 hover:border-[#E8C766]/70"
@@ -1599,7 +1708,7 @@ function BusinessSeatPod({
     <button
       onClick={onClick}
       disabled={taken}
-      title={`${seat.seatNumber}${seat.price > 0 ? ` · +₹${seat.price.toLocaleString("en-IN")}` : ""}`}
+      title={`${seat.seatNumber}${seat.price > 0 ? ` · +₹${Math.round(seat.price).toLocaleString("en-IN")}` : ""}`}
       style={{ width: size, height }}
       className={`seat-btn group relative shrink-0 transition-all duration-200 ${
         taken ? "cursor-not-allowed" : "cursor-pointer hover:-translate-y-0.5"
@@ -1652,7 +1761,7 @@ function BusinessSeatPod({
           className="absolute text-[9px] leading-none px-1.5 py-0.5 rounded bg-[#060B14]/90 border border-violet-400/30 text-violet-300/80 whitespace-nowrap"
           style={{ top: size * 0.02, right: -4 }}
         >
-          +₹{seat.price.toLocaleString("en-IN")}
+          +₹{Math.round(seat.price).toLocaleString("en-IN")}
         </span>
       )}
     </button>
@@ -1685,7 +1794,7 @@ function IllustratedSeatPod({
     <button
       onClick={onClick}
       disabled={taken}
-      title={`${seat.seatNumber}${seat.price > 0 ? ` · +₹${seat.price.toLocaleString("en-IN")}` : ""}`}
+      title={`${seat.seatNumber}${seat.price > 0 ? ` · +₹${Math.round(seat.price).toLocaleString("en-IN")}` : ""}`}
       style={{ width: size, height }}
       className={`seat-btn group relative shrink-0 transition-all duration-200 ${
         taken ? "cursor-not-allowed" : "cursor-pointer hover:-translate-y-0.5"
@@ -1749,7 +1858,7 @@ function IllustratedSeatPod({
           className="absolute text-[9px] leading-none px-1.5 py-0.5 rounded bg-[#060B14]/90 border border-[#D4AF37]/30 text-[#C9A227]/80 whitespace-nowrap"
           style={{ top: size * 0.02, right: -4 }}
         >
-          +₹{seat.price.toLocaleString("en-IN")}
+          +₹{Math.round(seat.price).toLocaleString("en-IN")}
         </span>
       )}
     </button>
@@ -1779,12 +1888,6 @@ function LockIcon({
     </svg>
   )
 }
-
-// ---------------------------------------------------------------------------
-// LegendChip — swatches now mirror the actual seat-pod shape and gradient
-// per state (available / selected / booked / locked) instead of plain
-// rounded squares, so the legend reads as a key to the map, not decoration.
-// ---------------------------------------------------------------------------
 
 function LegendChip({
   variant,
@@ -1829,14 +1932,136 @@ function LegendChip({
       </span>
       <span className="text-[11px] text-slate-400">
         {label}
-        {typeof price === "number" && <span className="text-slate-600"> · ₹{price.toLocaleString("en-IN")}</span>}
+        {typeof price === "number" && <span className="text-slate-600"> · ₹{Math.round(price).toLocaleString("en-IN")}</span>}
       </span>
     </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// SeatSummary
+// 7. Rolling Price Counter & Digit Odometer
+// ---------------------------------------------------------------------------
+
+function RollingDigit({
+  char,
+  delay = 0,
+}: {
+  char: string
+  delay?: number
+}) {
+  if (char < "0" || char > "9") {
+    return (
+      <span className="inline-block px-[1px] text-amber-300 font-display font-black select-none">
+        {char}
+      </span>
+    )
+  }
+
+  const digit = parseInt(char, 10)
+
+  return (
+    <span
+      className="inline-block relative overflow-hidden h-[1.18em] leading-[1.18em] min-w-[0.62em] text-center align-baseline select-none font-display font-black text-amber-300"
+    >
+      <motion.span
+        className="flex flex-col w-full"
+        initial={false}
+        animate={{ y: `-${digit * 10}%` }}
+        transition={{
+          type: "spring",
+          stiffness: 160,
+          damping: 20,
+          mass: 0.85,
+          delay,
+        }}
+      >
+        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+          <span
+            key={n}
+            className="h-[1.18em] leading-[1.18em] flex items-center justify-center text-amber-300 text-center"
+          >
+            {n}
+          </span>
+        ))}
+      </motion.span>
+    </span>
+  )
+}
+
+function RollingPriceCounter({
+  value,
+  className = "",
+}: {
+  value: number
+  className?: string
+}) {
+  const rounded = Math.round(value)
+  const [isUpdating, setIsUpdating] = useState(false)
+  const prevRef = useRef(rounded)
+  const isFirstMount = useRef(true)
+
+  useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false
+      return
+    }
+    if (prevRef.current !== rounded) {
+      prevRef.current = rounded
+      setIsUpdating(true)
+      const timer = setTimeout(() => setIsUpdating(false), 750)
+      return () => clearTimeout(timer)
+    }
+  }, [rounded])
+
+  const formatted = rounded.toLocaleString("en-IN")
+  const chars = formatted.split("")
+  const len = chars.length
+
+  return (
+    <div className={`relative inline-flex flex-col items-end ${className}`}>
+      {/* Updating micro-status pill */}
+      <AnimatePresence>
+        {isUpdating && (
+          <motion.span
+            initial={{ opacity: 0, y: -4, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.9 }}
+            transition={{ duration: 0.2 }}
+            className="absolute -top-4 right-0 text-[8.5px] font-mono font-bold text-amber-300 bg-amber-400/20 border border-amber-400/40 px-1.5 py-0.2 rounded-full whitespace-nowrap tracking-wider shadow-[0_0_8px_rgba(251,191,36,0.3)]"
+          >
+            CALCULATING…
+          </motion.span>
+        )}
+      </AnimatePresence>
+
+      <motion.div
+        animate={isUpdating ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        className="inline-flex items-baseline font-mono tabular-nums"
+      >
+        <span className="font-display font-black text-amber-400 mr-1 text-xl sm:text-2xl select-none">
+          ₹
+        </span>
+        <div className="inline-flex items-baseline text-2xl sm:text-3xl font-display font-black text-amber-300">
+          {chars.map((ch, idx) => {
+            const revIdx = len - 1 - idx
+            const delay = idx * 0.04
+            return (
+              <RollingDigit
+                key={`digit-rev-${revIdx}-${ch === "," ? "comma" : "num"}`}
+                char={ch}
+                delay={delay}
+              />
+            )
+          })}
+        </div>
+      </motion.div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// 8. SeatSummary — Reservation Manifest & Total Fare (Right Column)
 // ---------------------------------------------------------------------------
 
 function SeatSummary({
@@ -1870,22 +2095,32 @@ function SeatSummary({
   onContinue: () => void
   onSkip: () => void
 }) {
-  const noSeatMapsAtAll = legs.every((l) => !l.hasSeatMap)
   const activeLeg = legs[activeLegIndex]
   const assignedCount = passengers.filter((p) => !!picks[`${activeLegIndex}:${p.id}`]).length
   const praise = CABIN_PRAISE[activeCabin]
 
   return (
-    <div className="sticky top-24 space-y-4">
-      <div className="relative bg-gradient-to-b from-[#0D1A2C] to-[#0A1424] border border-[#D4AF37]/15 rounded-2xl overflow-hidden ticket-edge">
-        <div className="px-5 py-4 border-b border-[#D4AF37]/10 flex items-center justify-between">
-          <p className="font-display text-sm font-semibold text-white tracking-wide">Your Selection</p>
-          <span className={`text-[11px] font-medium ${assignedCount === passengers.length ? "text-emerald-300" : "text-slate-500"}`}>
-            {assignedCount} of {passengers.length} seats selected
+    <div className="sticky top-20 space-y-4">
+      <div className="relative bg-gradient-to-b from-[#0C1729]/98 via-[#0E1B31]/98 to-[#091220]/98 border border-white/[0.12] rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.4)] ticket-edge">
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between">
+          <div>
+            <p className="font-display text-sm font-bold text-white tracking-wide">Reservation Manifest</p>
+            <p className="text-[10.5px] text-slate-400">Assign seat per passenger</p>
+          </div>
+          <span
+            className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
+              assignedCount === passengers.length
+                ? "bg-emerald-400/15 border-emerald-400/30 text-emerald-300"
+                : "bg-amber-400/15 border-amber-400/30 text-amber-300"
+            }`}
+          >
+            {assignedCount}/{passengers.length} Assigned
           </span>
         </div>
 
-        <div className="px-5 py-4 space-y-2.5">
+        {/* Passenger Cards */}
+        <div className="p-4 space-y-2.5">
           {passengers.map((p, pIdx) => {
             const seatId = picks[`${activeLegIndex}:${p.id}`]
             const seat = activeLeg?.seats.find((s) => s.id === seatId)
@@ -1896,107 +2131,160 @@ function SeatSummary({
               <div
                 key={p.id}
                 onClick={() => onSelectPassenger(pIdx)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-colors ${
-                  isActive ? `${color.ring} ${color.bg}` : "border-white/[0.06] hover:border-white/15 hover:bg-white/[0.02]"
+                className={`relative flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 cursor-pointer ${
+                  isActive
+                    ? "bg-gradient-to-r from-amber-400/[0.12] to-transparent border-[#D4AF37] shadow-[0_0_18px_rgba(212,175,55,0.15)]"
+                    : "border-white/[0.06] bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.04]"
                 }`}
               >
-                <span className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${color.dot} text-[#060B14]`}>
+                {/* Avatar with initials */}
+                <span
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${color.dot} text-[#060B14] shadow-sm`}
+                >
                   {paxInitials(p, pIdx)}
                 </span>
+
+                {/* Name & Type */}
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-white truncate">{paxFullName(p, pIdx)}</p>
-                  <p className="text-[10px] text-slate-500">{paxTypeLabel(p)}</p>
+                  <p className="text-xs font-bold text-white truncate">{paxFullName(p, pIdx)}</p>
+                  <div className="flex items-center gap-1.5 text-[10px] mt-0.5">
+                    <span className="text-slate-400 font-medium">{paxTypeLabel(p)}</span>
+                    <span className="text-slate-600">•</span>
+                    {seat ? (
+                      <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        Seat Assigned
+                      </span>
+                    ) : isActive ? (
+                      <span className="text-amber-400 font-semibold flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                        Selecting Seat
+                      </span>
+                    ) : (
+                      <span className="text-slate-500 font-medium">No Seat</span>
+                    )}
+                  </div>
                 </div>
+
+                {/* Assigned Seat Badge or Prompt */}
                 {seat ? (
-                  <>
-                    <div className="text-right shrink-0">
-                      <span
-                        className={`inline-flex items-center rounded-full font-mono text-[11px] font-semibold px-2.5 py-0.5 ${color.badge}`}
-                      >
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="text-right">
+                      <span className="inline-flex items-center font-mono text-xs font-black text-amber-300 bg-amber-400/15 border border-amber-400/30 rounded-lg px-2 py-0.5 shadow-sm">
                         {seat.seatNumber}
                       </span>
-                      {seat.price > 0 && (
-                        <p className="text-[11px] text-slate-300 tabular-nums mt-0.5">₹{seat.price.toLocaleString("en-IN")}</p>
-                      )}
+                      <p className="text-[10px] text-slate-400 font-mono tabular-nums mt-0.5">
+                        {seat.price > 0 ? `+₹${Math.round(seat.price).toLocaleString("en-IN")}` : "Included"}
+                      </p>
                     </div>
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation()
                         onClearSeat(p.id)
                       }}
-                      className="text-slate-600 hover:text-red-400 transition-colors shrink-0"
-                      aria-label={`Remove seat for ${paxFullName(p, pIdx)}`}
+                      className="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/15 border border-transparent hover:border-rose-500/30 flex items-center justify-center transition-all cursor-pointer"
+                      title="Clear assigned seat"
                     >
-                      🗑
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
-                  </>
+                  </div>
                 ) : (
-                  <span className="text-[11px] text-slate-600 italic shrink-0">No seat</span>
+                  <span className="text-[10.5px] text-amber-300/90 font-semibold bg-amber-400/10 border border-amber-400/25 px-2.5 py-1 rounded-lg shrink-0">
+                    Pick a seat
+                  </span>
                 )}
               </div>
             )
           })}
         </div>
 
+        {/* Ticket Perforation Line */}
         <div className="relative my-1 px-5">
-          <div className="border-t border-dashed border-[#D4AF37]/20" />
-          <span className="absolute -left-[26px] -top-3 w-6 h-6 rounded-full bg-[#060B14]" />
-          <span className="absolute -right-[26px] -top-3 w-6 h-6 rounded-full bg-[#060B14]" />
+          <div className="border-t border-dashed border-white/15" />
+          <span className="absolute -left-3 -top-2.5 w-5 h-5 rounded-full bg-[#060B14] border-r border-white/10" />
+          <span className="absolute -right-3 -top-2.5 w-5 h-5 rounded-full bg-[#060B14] border-l border-white/10" />
         </div>
 
-        <div className="px-5 pt-4 pb-4">
-          <div className="border border-blue-400/25 bg-blue-500/[0.07] rounded-xl px-4 py-3.5 flex items-end justify-between">
-            <span className="text-sm text-slate-300">Total Seat Price</span>
-            <span className={`font-display text-[28px] leading-none font-extrabold tabular-nums text-[#E8C766] ${totalSeatPrice > 0 ? "seat-pop" : ""}`}>
-              ₹{totalSeatPrice.toLocaleString("en-IN")}
-            </span>
+        {/* Total Seat Price Pod */}
+        <div className="p-3.5 sm:p-4">
+          <div className="p-3.5 rounded-xl bg-gradient-to-br from-[#12233f]/90 via-[#0d1b33]/90 to-[#0a1426]/90 border border-amber-400/25 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),0_8px_24px_rgba(0,0,0,0.35)] relative overflow-hidden">
+            {/* Top row: Label & Assigned Badge */}
+            <div className="flex items-center justify-between gap-1.5 pb-2 border-b border-white/[0.08]">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)] shrink-0" />
+                <span className="text-[10.5px] font-mono uppercase tracking-wider text-slate-300 font-bold whitespace-nowrap">
+                  Total Seat Fare
+                </span>
+              </div>
+              <span className="text-[9.5px] font-mono text-amber-300 bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-full shrink-0 whitespace-nowrap">
+                {assignedCount}/{passengers.length} Assigned
+              </span>
+            </div>
+
+            {/* Bottom row: Subtitle & Rolling Price Counter */}
+            <div className="flex items-end justify-between gap-2 pt-2.5">
+              <div className="min-w-0 flex-1">
+                <p className="text-[10.5px] text-slate-400 font-medium leading-tight">
+                  {Math.round(totalSeatPrice) === 0 ? "Complimentary selection" : "Added to booking total"}
+                </p>
+                <p className="text-[9.5px] text-slate-400 mt-0.5 font-mono">
+                  {assignedCount === 0 ? "Standard allocation" : `${assignedCount} seat${assignedCount > 1 ? "s" : ""} selected`}
+                </p>
+              </div>
+
+              <div className="shrink-0 text-right">
+                <RollingPriceCounter value={totalSeatPrice} />
+              </div>
+            </div>
           </div>
         </div>
 
+        {/* Praise / In-Flight perk banner if seats selected */}
         {assignedCount > 0 && (
-          <div className="mx-5 mb-4 flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-emerald-400/[0.08] border border-emerald-400/20">
-            <span className="text-emerald-300 shrink-0">✓</span>
+          <div className="mx-5 mb-4 p-3 rounded-xl bg-emerald-500/[0.08] border border-emerald-500/20 flex items-start gap-2.5">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
             <div>
-              <p className="text-[12px] font-medium text-emerald-300">{praise.title}</p>
-              <p className="text-[11px] text-emerald-300/70 mt-0.5">{praise.body}</p>
+              <p className="text-xs font-bold text-emerald-300">{praise.title}</p>
+              <p className="text-[10.5px] text-emerald-300/70 leading-tight mt-0.5">{praise.body}</p>
             </div>
           </div>
         )}
 
         {submitError && (
-          <div className="px-5 mb-4">
-            <p className="text-xs text-red-300 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
-              {submitError}
-            </p>
+          <div className="mx-5 mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20">
+            <p className="text-xs text-rose-300">{submitError}</p>
           </div>
         )}
 
-        <div className="px-5 pb-5 space-y-2.5">
+        {/* Action Buttons */}
+        <div className="p-5 pt-0 space-y-3">
           <button
             onClick={onContinue}
-            disabled={(!allSeatsAssigned && !noSeatMapsAtAll) || submitting}
-            className={`continue-cta relative overflow-hidden w-full px-6 py-3.5 rounded-full font-semibold pill-cta transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none ${
-              (allSeatsAssigned || noSeatMapsAtAll) && !submitting ? "rail-glow" : ""
+            disabled={!allSeatsAssigned || submitting}
+            className={`continue-cta relative overflow-hidden w-full px-6 py-3.5 rounded-full font-bold text-sm tracking-wide transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+              allSeatsAssigned && !submitting ? "pill-cta shadow-[0_8px_30px_rgba(251,191,36,0.35)]" : "bg-white/10 text-slate-400"
             }`}
           >
-            {(allSeatsAssigned || noSeatMapsAtAll) && !submitting && (
-              <span className="shimmer-sweep absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent skew-x-[-20deg]" />
+            {allSeatsAssigned && !submitting && (
+              <span className="shimmer-sweep absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-[-20deg]" />
             )}
-            <span className="relative">{submitting ? "Saving…" : "Continue to Add-ons"}</span>
-            {!submitting && <span aria-hidden className="relative">→</span>}
+            <span className="relative">{submitting ? "Securing Seats…" : "Continue to Add-ons"}</span>
+            {!submitting && <ArrowRight className="w-4 h-4 relative" />}
           </button>
 
-          {!allSeatsAssigned && !noSeatMapsAtAll && (
-            <p className="text-[11px] text-slate-500 text-center">
-              Pick a seat for every passenger on every leg to continue
+          {!allSeatsAssigned && (
+            <p className="text-[10.5px] text-slate-400 text-center leading-tight">
+              Please choose a seat for all passengers on each flight leg to continue
             </p>
           )}
 
           <button
             onClick={onSkip}
-            className="w-full text-xs text-slate-500 hover:text-slate-300 transition-colors py-1"
+            className="w-full text-xs text-slate-400 hover:text-amber-300 transition-colors py-1 cursor-pointer flex items-center justify-center gap-1"
           >
-            Skip seat selection for now
+            <span>Skip seat selection & auto-assign</span>
+            <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
@@ -2005,10 +2293,157 @@ function SeatSummary({
 }
 
 // ---------------------------------------------------------------------------
-// PageShell
+// 8. SkipSeatModal — Cabin Auto-Assignment Modal
 // ---------------------------------------------------------------------------
 
-const steps = [
+function SkipSeatModal({
+  step,
+  cabin,
+  errorMessage,
+  onCabinChange,
+  onCheck,
+  onBackToCabin,
+  onChooseMode,
+  onClose,
+}: {
+  step: "cabin" | "mode" | "error"
+  cabin: CabinKey
+  errorMessage: string | null
+  onCabinChange: (c: CabinKey) => void
+  onCheck: () => void
+  onBackToCabin: () => void
+  onChooseMode: (mode: "random" | "together") => void
+  onClose: () => void
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 backdrop-blur-md px-4"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-md bg-gradient-to-b from-[#0E1C33] to-[#091220] border border-amber-400/30 rounded-3xl shadow-[0_24px_80px_rgba(0,0,0,0.6)] overflow-hidden p-6"
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+          aria-label="Close"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        {step === "cabin" && (
+          <div>
+            <div className="w-10 h-10 rounded-2xl bg-amber-400/10 border border-amber-400/25 flex items-center justify-center text-amber-300 mb-3">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <h3 className="font-display font-black text-lg text-white mb-1">Smart Auto-Assign</h3>
+            <p className="text-xs text-slate-400 mb-5">
+              Select your desired cabin tier and we will automatically allocate optimal available seats.
+            </p>
+
+            <div className="grid grid-cols-2 gap-2.5 mb-5">
+              {CABIN_CLASSES.map((c) => {
+                const isActive = cabin === c.key
+                return (
+                  <button
+                    key={c.key}
+                    onClick={() => onCabinChange(c.key)}
+                    className={`flex flex-col items-start gap-1 p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                      isActive
+                        ? "border-[#D4AF37] bg-amber-400/[0.12] shadow-[0_0_15px_rgba(251,191,36,0.2)]"
+                        : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
+                    }`}
+                  >
+                    <span className={`text-xs font-bold ${isActive ? "text-amber-300" : "text-white"}`}>
+                      {c.label}
+                    </span>
+                    <span className={`text-[10px] font-mono ${isActive ? "text-amber-200/80" : "text-slate-400"}`}>
+                      from ₹{c.fromPrice.toLocaleString("en-IN")}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+
+            <button
+              onClick={onCheck}
+              className="w-full py-3.5 rounded-full gold-cta font-bold text-sm tracking-wide cursor-pointer shadow-lg"
+            >
+              Verify Availability & Assign
+            </button>
+          </div>
+        )}
+
+        {step === "mode" && (
+          <div>
+            <h3 className="font-display font-black text-lg text-white mb-1">Seating Preference</h3>
+            <p className="text-xs text-slate-400 mb-5">
+              How would you like our flight system to allocate your seats?
+            </p>
+
+            <div className="space-y-3">
+              <button
+                onClick={() => onChooseMode("together")}
+                className="w-full flex items-center gap-3.5 p-4 rounded-xl border border-white/10 bg-white/[0.03] hover:border-amber-400/50 hover:bg-amber-400/[0.05] transition-all text-left cursor-pointer"
+              >
+                <div className="w-10 h-10 rounded-xl bg-amber-400/10 border border-amber-400/25 flex items-center justify-center text-amber-300 shrink-0">
+                  <Armchair className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-white">Sit Together in Same Row</p>
+                  <p className="text-[10.5px] text-slate-400">Place travelers in adjacent contiguous seats</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => onChooseMode("random")}
+                className="w-full flex items-center gap-3.5 p-4 rounded-xl border border-white/10 bg-white/[0.03] hover:border-amber-400/50 hover:bg-amber-400/[0.05] transition-all text-left cursor-pointer"
+              >
+                <div className="w-10 h-10 rounded-xl bg-cyan-400/10 border border-cyan-400/25 flex items-center justify-center text-cyan-300 shrink-0">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-white">Fastest Available</p>
+                  <p className="text-[10.5px] text-slate-400">Instant assignment from nearest open slots</p>
+                </div>
+              </button>
+            </div>
+
+            <button
+              onClick={onBackToCabin}
+              className="w-full mt-4 text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
+            >
+              ← Choose a different cabin
+            </button>
+          </div>
+        )}
+
+        {step === "error" && (
+          <div>
+            <div className="w-10 h-10 rounded-2xl bg-rose-500/10 border border-rose-500/25 flex items-center justify-center text-rose-400 mb-3">
+              <AlertCircle className="w-5 h-5" />
+            </div>
+            <h3 className="font-display font-black text-lg text-white mb-1">Cabin Sold Out</h3>
+            <p className="text-xs text-slate-400 mb-5">{errorMessage}</p>
+            <button
+              onClick={onBackToCabin}
+              className="w-full py-3.5 rounded-full gold-cta font-bold text-sm tracking-wide cursor-pointer"
+            >
+              Select Another Cabin
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// 9. PageShell & Stepper
+// ---------------------------------------------------------------------------
+
+const STEPS = [
   { id: 1, label: "Search" },
   { id: 2, label: "Select" },
   { id: 3, label: "Passengers" },
@@ -2022,36 +2457,38 @@ function PageShell({
   selection,
   router,
 }: {
-  children: ReactNode
-  selection?: CheckoutSelection
+  children?: ReactNode
+  selection?: CheckoutSelection | null
   router?: ReturnType<typeof useRouter>
 }) {
   return (
     <div className="min-h-screen bg-[#060B14] text-white relative overflow-x-hidden">
       <PageStyles />
 
-      {/* film-grain texture — foil-stamped cardstock feel over the dark cabin */}
-      <div className="pointer-events-none fixed inset-0 opacity-[0.05] mix-blend-overlay grain-layer" />
+      {/* Top Brand Glow Accent */}
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-blue-400 via-amber-400 to-amber-300 z-10" />
 
-      <div className="pointer-events-none fixed top-[-200px] left-[15%] w-[600px] h-[600px] bg-[#D4AF37]/[0.05] blur-[160px] rounded-full ambient-drift-1" />
-      <div className="pointer-events-none fixed bottom-[-200px] right-[10%] w-[500px] h-[500px] bg-cyan-400/[0.05] blur-[160px] rounded-full ambient-drift-2" />
-      <div className="pointer-events-none fixed top-[30%] right-[25%] w-[350px] h-[350px] bg-violet-400/[0.03] blur-[140px] rounded-full ambient-drift-3" />
+      {/* Atmospheric Ambient Lighting */}
+      <div className="pointer-events-none fixed top-[-200px] left-[15%] w-[600px] h-[600px] bg-amber-500/[0.04] blur-[160px] rounded-full" />
+      <div className="pointer-events-none fixed top-[10%] right-[5%] w-[450px] h-[450px] bg-blue-500/[0.035] blur-[150px] rounded-full" />
+      <div className="pointer-events-none fixed bottom-[-200px] right-[10%] w-[500px] h-[500px] bg-cyan-400/[0.04] blur-[160px] rounded-full" />
 
       <Navbar />
 
-      <div className="relative max-w-[1600px] mx-auto px-6 pt-24 pb-16">
-        <div className="flex items-center justify-between gap-6 mb-10">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-20 pb-16">
+        {/* Top Bar with Back Navigation & Journey Stepper */}
+        <div className="flex items-center justify-between gap-6 mb-4">
           <button
             onClick={() => router?.push("/checkout/passengers")}
-            className="group flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full text-sm text-slate-400 hover:text-white border border-transparent hover:border-white/10 hover:bg-white/[0.04] transition-colors shrink-0"
+            className="group flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full text-xs font-semibold text-slate-400 hover:text-white border border-transparent hover:border-white/10 hover:bg-white/[0.04] transition-all cursor-pointer shrink-0"
           >
-            <span className="w-6 h-6 rounded-full bg-white/[0.05] flex items-center justify-center group-hover:bg-white/10 transition-colors" aria-hidden>
+            <span className="w-6 h-6 rounded-full bg-white/[0.06] flex items-center justify-center group-hover:bg-amber-400 group-hover:text-[#060B14] transition-all">
               ←
             </span>
-            Back to passenger details
+            <span>Back to passengers</span>
           </button>
 
-          <Stepper currentStepId={4} />
+          <Stepper activeId={4} />
         </div>
 
         {children}
@@ -2060,44 +2497,37 @@ function PageShell({
   )
 }
 
-// ---------------------------------------------------------------------------
-// Stepper — a single continuous track (not dashed segments) so progress
-// reads as one journey; the fill genuinely encodes how far through the six
-// real, ordered checkout steps the traveller is, per the roman-numeral
-// numbering logic used elsewhere on this page.
-// ---------------------------------------------------------------------------
-
-function Stepper({ currentStepId }: { currentStepId: number }) {
-  const progressPct = ((currentStepId - 1) / (steps.length - 1)) * 100
+function Stepper({ activeId }: { activeId: number }) {
+  const progressPct = ((activeId - 1) / (STEPS.length - 1)) * 100
 
   return (
-    <div className="relative hidden md:flex items-center flex-1 max-w-2xl">
+    <div className="relative hidden md:flex items-center flex-1 max-w-xl">
       <div className="absolute left-4 right-4 h-[2px] bg-white/[0.08] rounded-full" />
       <div
-        className="absolute left-4 h-[2px] bg-gradient-to-r from-emerald-400 to-[#D4AF37] rounded-full transition-all duration-500"
-        style={{ width: `calc(${progressPct}% - ${progressPct > 0 ? 32 : 0}px)` }}
+        className="absolute left-4 h-[2px] bg-gradient-to-r from-emerald-400 to-amber-400 rounded-full transition-all duration-500"
+        style={{ width: `calc(${progressPct}% - ${progressPct > 0 ? 28 : 0}px)` }}
       />
 
       <div className="relative flex items-center justify-between w-full">
-        {steps.map((step) => {
-          const isDone = step.id < currentStepId
-          const isCurrent = step.id === currentStepId
+        {STEPS.map((step) => {
+          const isDone = step.id < activeId
+          const isCurrent = step.id === activeId
           return (
-            <div key={step.id} className="flex flex-col items-center gap-1.5 bg-[#060B14] px-1">
+            <div key={step.id} className="flex flex-col items-center gap-1 bg-[#060B14] px-1">
               <span
-                className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold border-2 transition-all ${
+                className={`w-7 h-7 rounded-full flex items-center justify-center text-[10.5px] font-bold border-2 transition-all ${
                   isCurrent
-                    ? "border-[#D4AF37] bg-[#D4AF37]/15 text-[#E8C766] shadow-[0_0_0_4px_rgba(212,175,55,0.12)] glow-pulse"
+                    ? "border-amber-400 bg-amber-400/20 text-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.4)]"
                     : isDone
-                    ? "border-emerald-400/70 bg-emerald-400/15 text-emerald-300"
-                    : "border-white/15 bg-white/[0.03] text-slate-600"
+                    ? "border-emerald-400/80 bg-emerald-400/15 text-emerald-300"
+                    : "border-white/10 bg-white/[0.03] text-slate-500"
                 }`}
               >
                 {isDone ? "✓" : step.id}
               </span>
               <span
-                className={`text-[11px] whitespace-nowrap ${
-                  isCurrent ? "text-[#E8C766] font-semibold" : isDone ? "text-emerald-300/70" : "text-slate-600"
+                className={`text-[10px] whitespace-nowrap ${
+                  isCurrent ? "text-amber-300 font-bold" : isDone ? "text-emerald-300/80" : "text-slate-500"
                 }`}
               >
                 {step.label}
@@ -2110,90 +2540,119 @@ function Stepper({ currentStepId }: { currentStepId: number }) {
   )
 }
 
+function CenteredMessage({ text }: { text: string }) {
+  return (
+    <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3">
+      <div className="w-8 h-8 rounded-full border-2 border-amber-400/30 border-t-amber-400 animate-spin" />
+      <p className="text-slate-400 text-xs tracking-wider uppercase font-mono">{text}</p>
+    </div>
+  )
+}
+
+function EmptyCabinCard({ cabinLabel }: { cabinLabel: string }) {
+  return (
+    <div className="bg-[#0D1A2C]/80 border border-white/10 rounded-2xl p-10 text-center">
+      <div className="w-12 h-12 rounded-full bg-amber-400/10 border border-amber-400/20 flex items-center justify-center mx-auto mb-3 text-amber-300">
+        <Armchair className="w-6 h-6" />
+      </div>
+      <p className="text-slate-200 font-bold text-sm">No {cabinLabel} seats configured on this flight</p>
+      <p className="text-xs text-slate-500 mt-1">Please select an available cabin tier from the left menu.</p>
+    </div>
+  )
+}
+
+function NoSeatMapCard() {
+  return (
+    <div className="bg-[#0D1A2C]/80 border border-white/10 rounded-2xl p-10 text-center">
+      <div className="w-12 h-12 rounded-full bg-white/[0.04] border border-white/10 flex items-center justify-center mx-auto mb-3 text-slate-400">
+        <Plane className="w-6 h-6" />
+      </div>
+      <p className="text-slate-200 font-bold text-sm">Seat selection is managed at airport check-in</p>
+      <p className="text-xs text-slate-500 mt-1">Your seats will be assigned complimentary upon boarding pass issuance.</p>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// 10. PageStyles
+// ---------------------------------------------------------------------------
+
 function PageStyles() {
   return (
     <style jsx global>{`
-      @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800;900&display=swap');
 
-      /* Bold geometric sans — matches the big price/time numerals on the
-         flights results page (₹9,597 · 9:00 AM), replacing the mismatched
-         serif that made this page feel like a different product. */
-      .font-display { font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif; letter-spacing: -0.01em; }
+      .font-display {
+        font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: -0.01em;
+      }
 
-      /* Gold CTA — richer brass gradient than a flat Tailwind amber */
       .gold-cta {
-        background: linear-gradient(135deg, #E8C766 0%, #D4AF37 45%, #B8860B 100%);
+        background: linear-gradient(135deg, #FDE68A 0%, #D4AF37 45%, #B45309 100%);
         color: #060B14;
-        box-shadow: 0 8px 30px rgba(212,175,55,0.22);
+        box-shadow: 0 8px 30px rgba(212,175,55,0.25);
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       }
-      .gold-cta:hover { filter: brightness(1.05); }
+      .gold-cta:hover {
+        filter: brightness(1.08);
+        transform: translateY(-1px);
+      }
 
-      /* Blue → gold pill CTA — same pairing as the "Continue" button on the
-         flights results page, so the primary action reads identically
-         across the booking flow instead of switching to a flat gold box. */
       .pill-cta {
-        background: linear-gradient(90deg, #38BDF8 0%, #60A5FA 30%, #D4AF37 70%, #E8C766 100%);
+        background: linear-gradient(90deg, #38BDF8 0%, #60A5FA 25%, #FBBF24 75%, #F59E0B 100%);
         color: #060B14;
-        box-shadow: 0 8px 30px rgba(56,189,248,0.18), 0 8px 30px rgba(212,175,55,0.18);
+        box-shadow: 0 8px 30px rgba(56,189,248,0.2), 0 8px 30px rgba(251,191,36,0.2);
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       }
-      .pill-cta:hover { filter: brightness(1.06); }
+      .pill-cta:hover {
+        filter: brightness(1.08);
+        transform: translateY(-1px);
+      }
 
-      /* Hairline gold ticket border, echoing a real boarding-pass edge */
-      .ticket-edge { position: relative; }
+      .ticket-edge {
+        position: relative;
+      }
       .ticket-edge::before {
         content: "";
         position: absolute;
-        inset: 3px;
-        border: 1px solid rgba(212,175,55,0.12);
+        inset: 2px;
+        border: 1px solid rgba(255,255,255,0.06);
         border-radius: inherit;
         pointer-events: none;
       }
 
-      /* Faint animated grain, like foil-stamped cardstock under the ambient glow */
-      .grain-layer {
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+      @keyframes seatPop {
+        0% { transform: scale(0.85); }
+        50% { transform: scale(1.15); }
+        100% { transform: scale(1); }
+      }
+      .seat-pop {
+        animation: seatPop 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
       }
 
-      @keyframes ambientDrift1 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(40px, 30px); } }
-      @keyframes ambientDrift2 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-30px, -40px); } }
-      @keyframes ambientDrift3 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(20px, -20px) scale(1.1); } }
-      .ambient-drift-1 { animation: ambientDrift1 14s ease-in-out infinite; }
-      .ambient-drift-2 { animation: ambientDrift2 16s ease-in-out infinite; }
-      .ambient-drift-3 { animation: ambientDrift3 12s ease-in-out infinite; }
+      @keyframes shimmerSweep {
+        0% { transform: translateX(-120%); }
+        100% { transform: translateX(120%); }
+      }
+      .shimmer-sweep {
+        animation: shimmerSweep 4.5s ease-in-out infinite;
+      }
 
-      @keyframes glowPulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
-      .glow-pulse { animation: glowPulse 1.8s ease-in-out infinite; }
-
-      @keyframes seatPop { 0% { transform: scale(0.88); } 55% { transform: scale(1.12); } 100% { transform: scale(1); } }
-      .seat-pop { animation: seatPop 240ms cubic-bezier(0.34,1.56,0.64,1); }
-
-      @keyframes shimmerSweep { 0% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
-      .shimmer-sweep { animation: shimmerSweep 2.8s ease-in-out infinite; }
-
-      @keyframes railGlow { 0%, 100% { box-shadow: 0 0 12px 1px rgba(212,175,55,0.18); } 50% { box-shadow: 0 0 22px 4px rgba(212,175,55,0.38); } }
-      .rail-glow { animation: railGlow 2.2s ease-in-out infinite; }
-
-      .cabin-row:hover { transform: translateY(-1px); }
-      .seat-btn:hover:not(:disabled) { transform: translateY(-3px) scale(1.04); }
-      .seat-btn:active:not(:disabled) { transform: translateY(0) scale(0.97); }
-
-      .continue-cta:hover { transform: scale(1.02); }
-      .continue-cta:active { transform: scale(0.98); }
+      .cabin-row:hover {
+        transform: translateY(-1px);
+      }
+      .continue-cta:hover:not(:disabled) {
+        transform: translateY(-1px) scale(1.01);
+      }
+      .continue-cta:active:not(:disabled) {
+        transform: translateY(0) scale(0.99);
+      }
 
       @media (prefers-reduced-motion: reduce) {
-        .ambient-drift-1, .ambient-drift-2, .ambient-drift-3,
-        .glow-pulse, .seat-pop, .shimmer-sweep, .rail-glow {
+        .seat-pop, .shimmer-sweep {
           animation: none !important;
         }
       }
     `}</style>
-  )
-}
-
-function CenteredMessage({ text }: { text: string }) {
-  return (
-    <div className="min-h-[50vh] flex items-center justify-center">
-      <p className="text-slate-500 text-sm tracking-wide font-display">{text}</p>
-    </div>
   )
 }
