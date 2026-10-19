@@ -80,11 +80,11 @@ export default function PriceInsight({
         <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-white/[0.06]">
           <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-2.5">
             <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Lowest Fare</p>
-            <p className="font-display text-sm font-bold text-[#E8C766]">₹{lowestPrice.toLocaleString("en-IN")}</p>
+            <p className="font-board text-sm font-bold text-[#E8C766]">₹{lowestPrice.toLocaleString("en-IN")}</p>
           </div>
           <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-2.5">
             <p className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Route Average</p>
-            <p className="font-display text-sm font-bold text-slate-300">₹{avgPrice.toLocaleString("en-IN")}</p>
+            <p className="font-board text-sm font-bold text-slate-300">₹{avgPrice.toLocaleString("en-IN")}</p>
           </div>
         </div>
       </div>
@@ -193,7 +193,7 @@ function ScoreGauge({ score, color }: { score: number; color: string }) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center pt-2">
-        <p className="font-display text-lg font-extrabold leading-none">{score.toFixed(1)}</p>
+        <p className="font-board text-lg font-extrabold leading-none">{score.toFixed(1)}</p>
         <p className="text-[10px] text-gray-500">of 5</p>
       </div>
     </div>

@@ -728,7 +728,7 @@ function KpiCard({
           {icon}
         </div>
       </div>
-      <div className="font-display font-black text-2xl sm:text-3xl text-white tracking-tight">
+      <div className="font-board font-extrabold text-2xl sm:text-3xl text-white tracking-tight tabular-nums">
         {value}
       </div>
       <div className="flex items-center gap-1.5 mt-2.5">

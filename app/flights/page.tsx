@@ -533,17 +533,17 @@ function FlightsPageContent() {
 
                 <div className="flex items-center gap-4 sm:gap-8 pr-4 sm:pr-8 sm:border-r border-white/10">
                   <div>
-                    <p className="text-xs text-slate-500">From</p>
-                    <p className="font-display text-2xl sm:text-4xl font-extrabold">{displayFrom}</p>
+                    <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">From</p>
+                    <p className="font-board text-2xl sm:text-4xl font-extrabold tracking-wider text-white">{displayFrom}</p>
                   </div>
                   <button
                     onClick={() => setSwapSpin((v) => !v)}
                     aria-label="Route indicator"
-                    className={`swap-circle w-10 h-10 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-amber-400/10 border border-amber-400/20 text-amber-300 transition-transform duration-500 ${swapSpin ? "rotate-180" : "rotate-0"}`}
+                    className={`btn-tactile swap-circle w-10 h-10 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-amber-400/10 border border-amber-400/25 text-amber-300 transition-transform duration-500 active:scale-90 ${swapSpin ? "rotate-180" : "rotate-0"}`}
                   >⇄</button>
                   <div>
-                    <p className="text-xs text-slate-500">To</p>
-                    <p className="font-display text-2xl sm:text-4xl font-extrabold text-amber-300">{displayTo}</p>
+                    <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">To</p>
+                    <p className="font-board text-2xl sm:text-4xl font-extrabold tracking-wider text-amber-300">{displayTo}</p>
                   </div>
                 </div>
 
@@ -804,24 +804,26 @@ function FlightsPageContent() {
                   disabled={!card.flight}
                   onClick={() => setSortBy(card.key)}
                   style={{ animationDelay: `${i * 60}ms` }}
-                  className={`fade-up relative text-left p-4 rounded-2xl border transition-all duration-200 overflow-hidden
+                  className={`fade-up relative text-left p-4 rounded-2xl border transition-all duration-300 overflow-hidden ticket-edge group
                   ${sortBy === card.key
-                    ? "bg-amber-400/[0.1] border-amber-400/50"
-                    : "bg-white/[0.03] border-white/10 hover:bg-white/5 hover:border-amber-400/25 hover:shadow-[0_0_18px_rgba(251,191,36,0.1)]"}
+                    ? "bg-amber-400/[0.1] border-amber-400/50 shadow-[0_0_24px_rgba(251,191,36,0.18)]"
+                    : "bg-white/[0.03] border-white/10 hover:bg-white/[0.06] hover:border-amber-400/30 hover:shadow-[0_0_18px_rgba(251,191,36,0.12)] hover:-translate-y-0.5"}
                   ${!card.flight ? "opacity-40 cursor-not-allowed" : ""}`}
                 >
-                  {sortBy === card.key && (
-                    <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-amber-300 to-amber-500" />
+                  {sortBy === card.key ? (
+                    <div className="top-accent-line" />
+                  ) : (
+                    <div className="top-accent-hairline opacity-0 group-hover:opacity-100 transition-opacity" />
                   )}
                   <div className="flex items-center gap-2 mb-2">
-                    <span>{card.icon}</span>
-                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-300">{card.label}</span>
+                    <span className="text-base">{card.icon}</span>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-300">{card.label}</span>
                   </div>
                   {card.flight ? (
                     <>
-                      <p className="text-sm font-medium truncate">{card.flight.airline}</p>
-                      <p className="font-display text-lg font-extrabold text-amber-300">₹{card.flight.final_price.toLocaleString("en-IN")}</p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-sm font-semibold text-slate-200 truncate">{card.flight.airline}</p>
+                      <p className="font-board text-lg font-extrabold gold-glow-text">₹{card.flight.final_price.toLocaleString("en-IN")}</p>
+                      <p className="text-xs text-slate-400 font-medium">
                         {card.flight.duration || formatDuration(getDurationMinutes(card.flight))}
                       </p>
                     </>

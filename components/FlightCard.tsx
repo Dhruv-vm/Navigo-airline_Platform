@@ -197,7 +197,7 @@ export default function FlightCard({
               <p className="font-display font-bold text-sm tracking-tight text-white leading-tight truncate" title={flight.airline}>
                 {flight.airline}
               </p>
-              <p className="text-[11px] text-gray-400 tracking-wide whitespace-nowrap mt-0.5">
+              <p className="font-board text-[11px] text-gray-400 tracking-wider whitespace-nowrap mt-0.5">
                 {flight.origin} <span className="text-amber-300/70">→</span> {flight.destination}
               </p>
             </div>
@@ -211,7 +211,7 @@ export default function FlightCard({
               <p className="font-display text-base sm:text-lg lg:text-xl font-extrabold tabular-nums text-white whitespace-nowrap">
                 {formatTime(flight.departure_time)}
               </p>
-              <p className="text-[10px] sm:text-[11px] text-gray-400 tracking-wide uppercase mt-0.5 font-semibold">{flight.origin}</p>
+              <p className="font-board text-[11px] sm:text-xs text-slate-300 tracking-wider uppercase mt-0.5 font-bold">{flight.origin}</p>
             </div>
 
             {/* TIMELINE BAR */}
@@ -237,7 +237,7 @@ export default function FlightCard({
               <p className="font-display text-base sm:text-lg lg:text-xl font-extrabold tabular-nums text-white whitespace-nowrap">
                 {formatTime(flight.arrival_time)}
               </p>
-              <p className="text-[10px] sm:text-[11px] text-gray-400 tracking-wide uppercase mt-0.5 font-semibold">{flight.destination}</p>
+              <p className="font-board text-[11px] sm:text-xs text-slate-300 tracking-wider uppercase mt-0.5 font-bold">{flight.destination}</p>
             </div>
 
           </div>

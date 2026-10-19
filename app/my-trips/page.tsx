@@ -510,10 +510,10 @@ function BookingCard({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: index * 0.05 }}
-      className={`group relative rounded-3xl border transition-all duration-300 overflow-hidden ${
+      className={`group relative rounded-3xl border transition-all duration-300 overflow-hidden ticket-edge ${
         isPast
           ? "bg-white/[0.015] border-white/[0.07] hover:border-white/[0.15]"
-          : "bg-white/[0.03] border-white/[0.1] hover:border-amber-400/30 hover:shadow-[0_12px_40px_rgba(0,0,0,0.5)]"
+          : "bg-white/[0.03] border-white/[0.1] hover:border-[#D4AF37]/35 hover:shadow-[0_16px_50px_rgba(0,0,0,0.55)]"
       }`}
     >
       {/* Top status accent ribbon */}
@@ -535,7 +535,7 @@ function BookingCard({
               <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">PNR:</span>
               <button
                 onClick={() => onCopyPnr(pnr)}
-                className="font-mono text-sm font-bold text-[#E8C766] hover:underline inline-flex items-center gap-1.5 bg-[#D4AF37]/10 px-2.5 py-0.5 rounded-lg border border-[#D4AF37]/20"
+                className="font-board text-sm font-bold text-[#E8C766] hover:underline inline-flex items-center gap-1.5 bg-[#D4AF37]/10 px-2.5 py-0.5 rounded-lg border border-[#D4AF37]/20 transition-transform active:scale-95"
                 title="Click to copy PNR"
               >
                 {pnr}
@@ -567,7 +567,7 @@ function BookingCard({
           <div className="flex items-center gap-3 text-xs">
             <span className="text-slate-400">
               Total:{" "}
-              <span className="font-display font-extrabold text-white text-sm">
+              <span className="font-board font-extrabold gold-glow-text text-sm">
                 {booking.totalPrice || booking.paidAmount
                   ? formatINR(booking.totalPrice || booking.paidAmount || 0)
                   : "Paid"}
@@ -597,7 +597,7 @@ function BookingCard({
                   </div>
                   <div>
                     <p className="text-xs font-bold text-white uppercase">{leg.airline}</p>
-                    <p className="text-[11px] font-mono text-slate-400">{flightNum}</p>
+                    <p className="text-[11px] font-board text-slate-400 font-semibold">{flightNum}</p>
                     <p className="text-[11px] text-amber-300/90 mt-0.5">{formatDate(leg.travelDate)}</p>
                   </div>
                 </div>
@@ -605,7 +605,7 @@ function BookingCard({
                 {/* Route Visualizer */}
                 <div className="flex-1 grid grid-cols-9 items-center gap-2 max-w-lg">
                   <div className="col-span-3">
-                    <p className="font-display text-lg sm:text-xl font-bold text-white">{leg.origin}</p>
+                    <p className="font-board text-lg sm:text-xl font-extrabold tracking-wider text-white">{leg.origin}</p>
                     <p className="text-xs text-amber-300 font-medium">{formatTime(leg.departureTime)}</p>
                     <p className="text-[10px] text-slate-500 truncate">{getAirportCity(leg.origin)}</p>
                   </div>
@@ -618,13 +618,13 @@ function BookingCard({
                       <span className="text-[10px] text-amber-300">✈</span>
                       <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                     </div>
-                    <span className="text-[9px] text-slate-500 font-mono">
+                    <span className="text-[9px] text-slate-400 font-board">
                       Gate: {gate || "TBA"}
                     </span>
                   </div>
 
                   <div className="col-span-3 text-right">
-                    <p className="font-display text-lg sm:text-xl font-bold text-white">{leg.destination}</p>
+                    <p className="font-board text-lg sm:text-xl font-extrabold tracking-wider text-white">{leg.destination}</p>
                     <p className="text-xs text-cyan-300 font-medium">{formatTime(leg.arrivalTime)}</p>
                     <p className="text-[10px] text-slate-500 truncate">{getAirportCity(leg.destination)}</p>
                   </div>
@@ -650,14 +650,14 @@ function BookingCard({
           <div className="flex items-center gap-2">
             <button
               onClick={onOpenDetails}
-              className="px-3.5 py-1.5 rounded-full border border-white/[0.1] text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/[0.05] transition-colors flex items-center gap-1.5"
+              className="px-3.5 py-1.5 pill-secondary flex items-center gap-1.5 cursor-pointer"
             >
               📋 View Details
             </button>
             {!isPast && (
               <button
                 onClick={onCheckIn}
-                className="px-3.5 py-1.5 rounded-full border border-white/[0.1] text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/[0.05] transition-colors flex items-center gap-1.5"
+                className="px-3.5 py-1.5 pill-secondary flex items-center gap-1.5 cursor-pointer"
               >
                 🛫 Web Check-in
               </button>
@@ -668,7 +668,7 @@ function BookingCard({
             {isPast ? (
               <button
                 onClick={() => router.push(`/?from=${primaryLeg.origin}&to=${primaryLeg.destination}`)}
-                className="px-4 py-2 rounded-full border border-white/[0.12] bg-white/[0.03] text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/[0.06] transition-colors"
+                className="px-4 py-2 pill-secondary cursor-pointer"
               >
                 🔄 Rebook Route
               </button>
@@ -676,7 +676,7 @@ function BookingCard({
 
             <button
               onClick={onOpenBoardingPass}
-              className="px-5 py-2 rounded-full pill-cta text-xs font-bold shadow-[0_2px_14px_rgba(251,191,36,0.3)] hover:brightness-105 transition-all flex items-center gap-1.5"
+              className="px-5 py-2 rounded-full pill-cta text-xs font-bold shadow-[0_2px_14px_rgba(251,191,36,0.3)] hover:brightness-105 transition-all flex items-center gap-1.5 cursor-pointer"
             >
               🎫 {isPast ? "View Archived Pass" : "Boarding Pass & QR"}
             </button>

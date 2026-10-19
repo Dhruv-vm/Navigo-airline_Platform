@@ -647,7 +647,7 @@ function Stepper({ activeId }: { activeId: number }) {
       <div className="relative hidden md:flex items-center flex-1 max-w-2xl ml-6">
         <div className="absolute left-3 right-3 h-[2px] bg-white/[0.08] rounded-full" />
         <div
-          className="absolute left-3 h-[2px] bg-gradient-to-r from-emerald-400 to-amber-400 rounded-full transition-all duration-500"
+          className="absolute left-3 h-[2px] bg-gradient-to-r from-emerald-400 to-[#D4AF37] rounded-full transition-all duration-500"
           style={{ width: `calc(${progressPct}% - ${progressPct > 0 ? 24 : 0}px)` }}
         />
         <div className="relative flex items-center justify-between w-full">
@@ -657,13 +657,21 @@ function Stepper({ activeId }: { activeId: number }) {
             return (
               <div key={step.id} className="flex flex-col items-center gap-1.5 bg-[#060B14] px-1">
                 <span
-                  className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-semibold border transition-colors duration-300
-                    ${isCurrent ? "border-amber-400 bg-amber-400/15 text-amber-300 step-pulse"
-                      : isDone ? "border-emerald-400/60 bg-emerald-400/10 text-emerald-300"
-                      : "border-white/10 text-slate-600"}`}>
+                  className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold border-2 transition-all ${
+                    isCurrent
+                      ? "border-[#D4AF37] bg-[#D4AF37]/15 text-[#E8C766] shadow-[0_0_0_4px_rgba(212,175,55,0.12)] glow-pulse"
+                      : isDone
+                      ? "border-emerald-400/70 bg-emerald-400/15 text-emerald-300"
+                      : "border-white/15 bg-white/[0.03] text-slate-600"
+                  }`}
+                >
                   {isDone ? <span className="tick-pop inline-block">✓</span> : step.id}
                 </span>
-                <span className={`text-[11px] whitespace-nowrap ${isCurrent ? "text-amber-300 font-medium" : isDone ? "text-emerald-300/80" : "text-slate-600"}`}>
+                <span
+                  className={`text-[11px] whitespace-nowrap ${
+                    isCurrent ? "text-[#E8C766] font-semibold" : isDone ? "text-emerald-300/70" : "text-slate-600"
+                  }`}
+                >
                   {step.label}
                 </span>
               </div>
@@ -725,7 +733,10 @@ function BoardingPassMini({ flight, travelDate, tag }: { flight: StoredFlight; t
 
         <div className="flex items-center gap-6">
           <div className="text-right">
-            <p className="font-display text-xl font-extrabold tabular-nums">{formatTime(flight.departure_time)}</p>
+            <div className="flex items-baseline justify-end gap-1.5">
+              <p className="font-display text-xl font-extrabold tabular-nums">{formatTime(flight.departure_time)}</p>
+              <span className="font-board text-xs text-amber-300/80 font-bold uppercase">{flight.origin}</span>
+            </div>
             <p className="text-[11px] text-slate-500">{formatDateLabel(flight.departure_time, travelDate)}</p>
           </div>
           <div className="flex flex-col items-center w-28">
@@ -738,7 +749,10 @@ function BoardingPassMini({ flight, travelDate, tag }: { flight: StoredFlight; t
             <p className="text-[10px] text-slate-500 mt-1">{flight.stops ? `${flight.stops} stop` : "Non-stop"}</p>
           </div>
           <div>
-            <p className="font-display text-xl font-extrabold tabular-nums">{formatTime(flight.arrival_time)}</p>
+            <div className="flex items-baseline gap-1.5">
+              <p className="font-display text-xl font-extrabold tabular-nums">{formatTime(flight.arrival_time)}</p>
+              <span className="font-board text-xs text-cyan-300/80 font-bold uppercase">{flight.destination}</span>
+            </div>
             <p className="text-[11px] text-slate-500">{formatDateLabel(flight.arrival_time, travelDate)}</p>
           </div>
           <button className="text-xs text-cyan-300 hover:text-cyan-200 transition-colors flex items-center gap-1 shrink-0">
@@ -1074,8 +1088,8 @@ function TripSummary({ departFlight, returnFlight, passengerCount, baseFare, tax
 
         <div className="px-6 pb-1">
           <div className="border border-blue-400/25 bg-blue-500/[0.07] rounded-xl px-4 py-3.5 flex items-end justify-between mb-4">
-            <span className="text-sm text-slate-300">Total Price</span>
-            <span className="font-display text-[26px] leading-none font-extrabold tabular-nums text-amber-300">
+            <span className="text-sm text-slate-300 font-medium">Total Price</span>
+            <span className="font-board text-[26px] leading-none font-extrabold tabular-nums gold-glow-text">
               ₹{displayedTotal.toLocaleString("en-IN")}
             </span>
           </div>

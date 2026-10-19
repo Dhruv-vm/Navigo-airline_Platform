@@ -734,7 +734,7 @@ function FlightLegRow({ flight, tag }: { flight: StoredFlight; tag?: "Departure"
           <span className="text-[10px] text-slate-600 font-mono">{deriveFlightNumber(flight.airline, flight.flight_instance_id)}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="font-display text-[15px] font-bold text-white tabular-nums">{flight.origin}</span>
+          <span className="font-board text-[15px] font-bold text-white tabular-nums">{flight.origin}</span>
           <span className="text-[10px] text-slate-500 tabular-nums shrink-0">{formatTime(flight.departure_time)}</span>
           <span className="flex-1 flex items-center gap-1 min-w-[20px]">
             <span className="w-1 h-1 rounded-full bg-slate-600 shrink-0" />
@@ -744,7 +744,7 @@ function FlightLegRow({ flight, tag }: { flight: StoredFlight; tag?: "Departure"
             <span className="w-1 h-1 rounded-full bg-[#D4AF37] shrink-0" />
           </span>
           <span className="text-[10px] text-slate-500 tabular-nums shrink-0">{formatTime(flight.arrival_time)}</span>
-          <span className="font-display text-[15px] font-bold text-white tabular-nums">{flight.destination}</span>
+          <span className="font-board text-[15px] font-bold text-white tabular-nums">{flight.destination}</span>
         </div>
       </div>
     </div>
@@ -926,12 +926,12 @@ function FareBreakdownSection({
       </div>
       <div className="border border-blue-400/25 bg-blue-500/[0.07] rounded-xl px-4 py-3.5 flex items-end justify-between">
         <div>
-          <span className="text-sm text-slate-300 block">Amount to Pay</span>
+          <span className="text-sm text-slate-300 block font-medium">Amount to Pay</span>
           <span className="text-[10px] text-amber-300/90 font-medium mt-0.5 flex items-center gap-1">
             ✨ Earn +{earnedPoints} pts on booking
           </span>
         </div>
-        <span className="font-display text-[28px] leading-none font-extrabold tabular-nums text-[#E8C766]">{formatINR(tripTotal)}</span>
+        <span className="font-board text-[28px] leading-none font-extrabold tabular-nums gold-glow-text">{formatINR(tripTotal)}</span>
       </div>
     </div>
   )

@@ -109,9 +109,9 @@ function CheckInContent() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="max-w-xl mx-auto bg-gradient-to-b from-[#0B1528] to-[#070E1C] border border-white/[0.12] rounded-3xl p-6 sm:p-8 shadow-[0_30px_90px_rgba(0,0,0,0.6)] relative overflow-hidden"
+          className="max-w-xl mx-auto bg-gradient-to-b from-[#0D1A2C] to-[#0A1424] border border-white/[0.12] rounded-3xl p-6 sm:p-8 shadow-[0_30px_90px_rgba(0,0,0,0.6)] relative overflow-hidden ticket-edge"
         >
-          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-blue-400 via-amber-400 to-emerald-400" />
+          <div className="top-accent-line" />
 
           <form
             onSubmit={(e) => {
@@ -130,7 +130,7 @@ function CheckInContent() {
                 onChange={(e) => setPnrInput(e.target.value.toUpperCase())}
                 placeholder="e.g. 6D9F2A"
                 maxLength={8}
-                className="w-full bg-white/[0.04] border border-white/[0.12] rounded-2xl px-5 py-3.5 text-base text-white font-mono uppercase tracking-widest placeholder:text-slate-600 focus:outline-none focus:border-amber-400/60"
+                className="w-full bg-white/[0.04] border border-white/[0.12] rounded-2xl px-5 py-3.5 text-base text-white font-board uppercase tracking-widest placeholder:text-slate-600 focus:outline-none focus:border-amber-400/60"
               />
             </div>
 
@@ -159,7 +159,7 @@ function CheckInContent() {
           {/* Quick upcoming flights chips */}
           {upcomingTrips.length > 0 && (
             <div className="mt-6 pt-5 border-t border-white/[0.08]">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 block mb-2">
+              <span className="text-[10px] font-board uppercase tracking-wider text-slate-500 block mb-2">
                 Your Upcoming Flights
               </span>
               <div className="flex flex-wrap gap-2">
@@ -167,11 +167,11 @@ function CheckInContent() {
                   <button
                     key={trip.id}
                     onClick={() => handleLaunchCheckIn(trip.pnr)}
-                    className="px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:border-amber-400/40 hover:bg-white/[0.08] text-xs font-mono text-slate-300 flex items-center gap-2 transition-all"
+                    className="px-3.5 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:border-amber-400/40 hover:bg-white/[0.08] text-xs font-board text-slate-300 flex items-center gap-2 transition-all hover:scale-105"
                   >
                     <span className="text-amber-300 font-bold">{trip.pnr}</span>
                     <span className="text-slate-500">·</span>
-                    <span>{trip.legs?.[0]?.origin || "DEL"} → {trip.legs?.[0]?.destination || "BLR"}</span>
+                    <span className="text-slate-200">{trip.legs?.[0]?.origin || "DEL"} → {trip.legs?.[0]?.destination || "BLR"}</span>
                   </button>
                 ))}
               </div>
@@ -181,8 +181,8 @@ function CheckInContent() {
 
         {/* Feature Highlights Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-16 max-w-5xl mx-auto">
-          <div className="p-6 rounded-3xl bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.12] transition-colors">
-            <div className="w-12 h-12 rounded-2xl bg-cyan-400/10 border border-cyan-400/20 text-cyan-300 flex items-center justify-center text-xl mb-4">
+          <div className="group relative p-6 rounded-3xl bg-white/[0.02] border border-white/[0.08] hover:border-cyan-400/40 hover:shadow-[0_0_32px_rgba(34,211,238,0.18)] transition-all duration-300 ticket-edge">
+            <div className="w-12 h-12 rounded-2xl bg-cyan-400/10 border border-cyan-400/20 text-cyan-300 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
               👤
             </div>
             <h3 className="font-display text-base font-bold text-white">Apple-Style Face ID</h3>
@@ -191,8 +191,8 @@ function CheckInContent() {
             </p>
           </div>
 
-          <div className="p-6 rounded-3xl bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.12] transition-colors">
-            <div className="w-12 h-12 rounded-2xl bg-amber-400/10 border border-amber-400/20 text-amber-300 flex items-center justify-center text-xl mb-4">
+          <div className="group relative p-6 rounded-3xl bg-white/[0.02] border border-white/[0.08] hover:border-[#D4AF37]/40 hover:shadow-[0_0_32px_rgba(212,175,55,0.18)] transition-all duration-300 ticket-edge">
+            <div className="w-12 h-12 rounded-2xl bg-amber-400/10 border border-amber-400/20 text-amber-300 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
               ⚡
             </div>
             <h3 className="font-display text-base font-bold text-white">DigiYatra Express Gates</h3>
@@ -201,8 +201,8 @@ function CheckInContent() {
             </p>
           </div>
 
-          <div className="p-6 rounded-3xl bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.12] transition-colors">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-400/10 border border-emerald-400/20 text-emerald-300 flex items-center justify-center text-xl mb-4">
+          <div className="group relative p-6 rounded-3xl bg-white/[0.02] border border-white/[0.08] hover:border-emerald-400/40 hover:shadow-[0_0_32px_rgba(52,211,153,0.18)] transition-all duration-300 ticket-edge">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-400/10 border border-emerald-400/20 text-emerald-300 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
               🛡️
             </div>
             <h3 className="font-display text-base font-bold text-white">Cryptographic QR Pass</h3>

@@ -691,9 +691,10 @@ function AddonCard({ addon, isSelected, variantIndex, onToggle, onVariantChange 
 }) {
   const variant = addon.variants[variantIndex]
   return (
-    <div className={`group relative rounded-2xl border overflow-hidden transition-all duration-200 ${
-      isSelected ? "border-amber-400/50 bg-amber-400/[0.06] shadow-[0_0_0_1px_rgba(251,191,36,0.15)]" : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
+    <div className={`group relative rounded-2xl border overflow-hidden transition-all duration-300 ticket-edge ${
+      isSelected ? "border-[#D4AF37]/50 bg-[#D4AF37]/[0.06] shadow-[0_0_24px_rgba(212,175,55,0.15)]" : "border-white/[0.08] bg-white/[0.02] hover:border-amber-400/30 hover:bg-white/[0.04]"
     }`}>
+      {isSelected && <div className="top-accent-line" />}
       {addon.discountPct && (
         <span className="absolute top-3 left-3 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-emerald-400/15 text-emerald-300 border border-emerald-400/25 z-10">
           {addon.discountPct}% OFF
@@ -727,7 +728,7 @@ function AddonCard({ addon, isSelected, variantIndex, onToggle, onVariantChange 
             {variant.originalPrice && (
               <span className="text-xs text-slate-600 line-through tabular-nums">{formatINR(variant.originalPrice)}</span>
             )}
-            <span className="font-display text-sm font-bold text-amber-300 tabular-nums">{formatINR(variant.price)}</span>
+            <span className="font-board text-sm font-bold text-[#E8C766] tabular-nums">{formatINR(variant.price)}</span>
           </div>
         </div>
 
@@ -878,7 +879,9 @@ function TripSummary({ selection, baseFare, taxesAndFees, seatSelectionPrice, se
         >
           <div>
             <p className="font-display text-sm font-semibold text-white">Your Trip Summary</p>
-            <p className="text-xs text-slate-500 mt-1">{selection.origin} → {selection.destination} · {selection.passengers} Passenger{selection.passengers > 1 ? "s" : ""}</p>
+            <p className="text-xs text-slate-500 mt-1">
+              <span className="font-board font-bold text-amber-300">{selection.origin}</span> → <span className="font-board font-bold text-cyan-300">{selection.destination}</span> · {selection.passengers} Passenger{selection.passengers > 1 ? "s" : ""}
+            </p>
           </div>
           <span className={`text-slate-500 transition-transform duration-200 shrink-0 ${open ? "" : "-rotate-180"}`} aria-hidden>
             <ChevronUpIcon />
@@ -929,8 +932,8 @@ function TripSummary({ selection, baseFare, taxesAndFees, seatSelectionPrice, se
 
         <div className="px-5 pt-4 pb-4">
           <div className="border border-blue-400/25 bg-blue-500/[0.07] rounded-xl px-4 py-3.5 flex items-end justify-between">
-            <span className="text-sm text-slate-300">Trip Total</span>
-            <span className="font-display text-[28px] leading-none font-extrabold tabular-nums text-[#E8C766]">{formatINR(tripTotal)}</span>
+            <span className="text-sm text-slate-300 font-medium">Trip Total</span>
+            <span className="font-board text-[28px] leading-none font-extrabold tabular-nums gold-glow-text">{formatINR(tripTotal)}</span>
           </div>
         </div>
 
