@@ -93,6 +93,31 @@ const airlineLogos: Record<string, string> = {
   "Navigo": "/logo.png",
 }
 
+const airlineColors: Record<string, { brand: string; accent: string; gradient: string }> = {
+  "Akasa Air": { brand: "#FF6600", accent: "text-[#FF8833]", gradient: "from-[#FF6600] via-[#FF8533] to-[#FFAA00]" },
+  "IndiGo": { brand: "#0052CC", accent: "text-cyan-400", gradient: "from-[#0052CC] via-[#0284C7] to-[#38BDF8]" },
+  "Air India": { brand: "#DC2626", accent: "text-rose-400", gradient: "from-[#DC2626] via-[#EF4444] to-[#F87171]" },
+  "Vistara": { brand: "#7C2D12", accent: "text-amber-300", gradient: "from-[#7C2D12] via-[#9A3412] to-[#D97706]" },
+  "Emirates": { brand: "#D97706", accent: "text-amber-400", gradient: "from-[#D97706] via-[#F59E0B] to-[#FBBF24]" },
+  "Qatar Airways": { brand: "#881337", accent: "text-rose-300", gradient: "from-[#881337] via-[#9F1239] to-[#FB7185]" },
+  "Singapore Airlines": { brand: "#0284C7", accent: "text-amber-300", gradient: "from-[#0284C7] via-[#0369A1] to-[#F59E0B]" },
+}
+
+const CITY_NAMES: Record<string, string> = {
+  DEL: "New Delhi",
+  BLR: "Bengaluru",
+  BOM: "Mumbai",
+  MAA: "Chennai",
+  CCU: "Kolkata",
+  HYD: "Hyderabad",
+  COK: "Kochi",
+  GOI: "Goa",
+  DXB: "Dubai",
+  SIN: "Singapore",
+  LHR: "London",
+  JFK: "New York",
+}
+
 function makeId() {
   return Math.random().toString(36).slice(2, 10)
 }
@@ -548,7 +573,7 @@ export default function PassengerDetailsPage() {
       <div className={`relative max-w-7xl mx-auto px-6 pt-24 pb-32 transition-all duration-700 ease-out ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-5"}`}>
         <Stepper activeId={3} />
 
-        <div className="space-y-3">
+        <div className={isRoundTrip ? "grid grid-cols-1 md:grid-cols-2 gap-4" : "space-y-3"}>
           <div className="transition-all duration-500 ease-out" style={{ transitionDelay: mounted ? "80ms" : "0ms" }}>
             <BoardingPassMini
               flight={departFlight}
@@ -571,46 +596,71 @@ export default function PassengerDetailsPage() {
         <div className="grid grid-cols-12 gap-6 mt-6">
           <div className="col-span-12 lg:col-span-8 space-y-5">
             <div
-              className="relative bg-gradient-to-r from-[#0C1729]/95 via-[#0F1E33]/98 to-[#0A1424]/95 border border-white/[0.12] rounded-3xl p-5 sm:p-6 shadow-[0_15px_35px_rgba(0,0,0,0.35)] backdrop-blur-2xl flex items-center justify-between flex-wrap gap-4 ticket-edge overflow-hidden transition-all duration-500 ease-out"
+              className="relative bg-gradient-to-r from-[#0C1729]/98 via-[#0F1E33]/98 to-[#0A1424]/98 border border-white/[0.14] rounded-3xl p-5 sm:p-6 shadow-[0_20px_50px_rgba(0,0,0,0.45)] backdrop-blur-2xl flex items-center justify-between flex-wrap gap-4 ticket-edge overflow-hidden transition-all duration-500 ease-out"
               style={{ transitionDelay: mounted ? "180ms" : "0ms", opacity: mounted ? 1 : 0, transform: mounted ? "translateY(0)" : "translateY(12px)" }}
             >
-              <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-cyan-400 via-amber-400/80 to-transparent" />
-              <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 rounded-2xl bg-cyan-400/10 border border-cyan-400/25 flex items-center justify-center text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.15)] shrink-0">
-                  <span className="text-lg">👤</span>
+              <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-gradient-to-r from-cyan-400 via-amber-400 to-transparent" />
+              
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-2xl bg-cyan-400/10 border border-cyan-400/30 flex items-center justify-center text-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.2)] shrink-0">
+                    <span className="text-xl">👤</span>
+                  </div>
+                  <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-400 border-2 border-[#0C1729]" />
+                  </span>
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-display font-bold text-base sm:text-lg text-white">Passenger Details</p>
-                    <span className="text-[10px] uppercase tracking-wider font-extrabold text-cyan-300 bg-cyan-400/10 border border-cyan-400/20 rounded-full px-2 py-0.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="font-display font-extrabold text-lg sm:text-xl text-white tracking-tight">
+                      Passenger Flight Manifest
+                    </h2>
+                    <span className="text-[10px] uppercase tracking-wider font-black text-cyan-300 bg-cyan-400/15 border border-cyan-400/30 rounded-full px-2.5 py-0.5 shadow-[0_0_8px_rgba(34,211,238,0.2)]">
                       Gov ID Required
                     </span>
+                    <span className="text-[10px] uppercase tracking-wider font-extrabold text-emerald-300 bg-emerald-400/10 border border-emerald-400/20 rounded-full px-2 py-0.5 hidden sm:inline-flex items-center gap-1">
+                      <span>⚡</span> Fast-Track Ready
+                    </span>
                   </div>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Enter names exactly as shown on government-issued photo identification
+                  <p className="text-xs text-slate-400 mt-1">
+                    Enter names and birth dates exactly as shown on government-issued photo ID (Aadhaar / Passport)
                   </p>
                 </div>
               </div>
-              {!authToken ? (
-                <div className="flex items-center gap-3 bg-white/[0.03] border border-white/[0.08] rounded-2xl px-4 py-2.5">
-                  <div className="text-right hidden sm:block">
-                    <p className="text-xs font-semibold text-slate-200">Book faster next time!</p>
-                    <p className="text-[11px] text-slate-400">Sign in to autofill saved passengers</p>
+
+              {/* Manifest Completion Progress & Settings */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl px-4 py-2.5">
+                  <div className="flex items-center justify-between gap-3 text-xs mb-1.5">
+                    <span className="font-bold text-slate-300">Manifest Progress</span>
+                    <span className="font-mono font-bold text-cyan-300">{allValid ? "100% Ready" : "In Progress"}</span>
                   </div>
+                  <div className="w-32 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 bg-gradient-to-r ${
+                        allValid ? "from-emerald-400 to-cyan-400 w-full" : "from-amber-400 to-yellow-300 w-2/3"
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                {!authToken ? (
                   <button
                     type="button"
                     onClick={() => router.push("/login")}
-                    className="text-xs font-bold text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/30 rounded-xl px-4 py-2 transition-all hover:scale-[1.02] shadow-[0_0_12px_rgba(251,191,36,0.15)] cursor-pointer"
+                    className="text-xs font-bold text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/30 rounded-2xl px-4 py-3 transition-all hover:scale-[1.02] shadow-[0_0_15px_rgba(251,191,36,0.15)] cursor-pointer flex items-center gap-2"
                   >
-                    Sign In
+                    <span>⚡</span>
+                    <span>Sign In to Autofill</span>
                   </button>
-                </div>
-              ) : (
-                <label className="flex items-center gap-2.5 bg-white/[0.03] border border-white/[0.08] rounded-2xl px-4 py-2.5 text-xs text-slate-300 cursor-pointer select-none hover:border-white/20 transition-colors">
-                  <Checkbox checked={saveForNextTime} onChange={() => setSaveForNextTime((v) => !v)} />
-                  <span className="font-medium">Save these details for future bookings</span>
-                </label>
-              )}
+                ) : (
+                  <label className="flex items-center gap-2.5 bg-white/[0.03] border border-white/[0.08] rounded-2xl px-4 py-3 text-xs text-slate-300 cursor-pointer select-none hover:border-white/20 transition-colors">
+                    <Checkbox checked={saveForNextTime} onChange={() => setSaveForNextTime((v) => !v)} />
+                    <span className="font-semibold">Auto-save for 1-Click Booking</span>
+                  </label>
+                )}
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -785,112 +835,146 @@ function Stepper({ activeId }: { activeId: number }) {
 function BoardingPassMini({ flight, travelDate, tag }: { flight: StoredFlight; travelDate?: string; tag?: "Departure" | "Return" }) {
   const isReturn = tag === "Return"
   const logo = airlineLogos[flight.airline] || "/airlines/default.png"
+  const theme = airlineColors[flight.airline] || {
+    brand: isReturn ? "#0284C7" : "#D4AF37",
+    accent: isReturn ? "text-cyan-300" : "text-amber-300",
+    gradient: isReturn ? "from-cyan-500 via-blue-500 to-indigo-600" : "from-amber-400 via-amber-500 to-orange-500",
+  }
+  const originCity = CITY_NAMES[flight.origin] || flight.origin
+  const destCity = CITY_NAMES[flight.destination] || flight.destination
+  const flightNum =
+    flight.airline === "Akasa Air"
+      ? "QP-1380"
+      : flight.airline === "IndiGo"
+      ? "6E-2041"
+      : flight.airline === "Air India"
+      ? "AI-803"
+      : flight.airline === "Vistara"
+      ? "UK-953"
+      : "NV-402"
 
   return (
     <motion.div
       whileHover={{ y: -2, scale: 1.004 }}
       transition={{ type: "spring", stiffness: 350, damping: 25 }}
-      className="relative bg-gradient-to-r from-[#0C1729]/95 via-[#0F1E33]/98 to-[#0A1424]/95 border border-white/[0.12] rounded-3xl p-4 sm:p-5 lg:px-7 lg:py-4 shadow-[0_15px_40px_rgba(0,0,0,0.45)] backdrop-blur-2xl overflow-hidden group"
+      className="relative bg-gradient-to-r from-[#0C1729]/98 via-[#0F1E33]/98 to-[#0A1424]/98 border border-white/[0.14] rounded-3xl p-4 sm:p-5 shadow-[0_20px_50px_rgba(0,0,0,0.45)] backdrop-blur-2xl group ticket-edge overflow-hidden"
     >
-      {/* Top dynamic glowing hairline */}
-      <div
-        className={`absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent ${
-          isReturn ? "via-cyan-400" : "via-amber-400"
-        } to-transparent`}
-      />
+      {/* Top airline livery hairline */}
+      <div className={`absolute top-0 left-0 right-0 h-[2.5px] bg-gradient-to-r ${theme.gradient}`} />
 
-      <div className="relative z-10 flex items-center justify-between flex-wrap gap-4">
-        {/* Airline & Aircraft Pod */}
-        <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-2xl bg-white flex items-center justify-center overflow-hidden shadow-md ring-1 ring-white/10 shrink-0 group-hover:scale-105 transition-transform">
+      {/* Ticket Cutout Notches */}
+      <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[#060B14] border-r border-white/[0.12] z-20 pointer-events-none" />
+      <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-[#060B14] border-l border-white/[0.12] z-20 pointer-events-none" />
+
+      {/* Card Header: Airline & Tag & Edit */}
+      <div className="flex items-center justify-between gap-3 mb-3.5 pb-3 border-b border-white/[0.06]">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center overflow-hidden shadow ring-1 ring-white/10 shrink-0 p-1">
             <img src={logo} alt={flight.airline} className="w-7 h-7 object-contain" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              {tag && (
-                <span
-                  className={`text-[10px] uppercase tracking-wider font-extrabold rounded-full px-2.5 py-0.5 border ${
-                    isReturn
-                      ? "text-cyan-300 bg-cyan-400/15 border-cyan-400/30"
-                      : "text-amber-300 bg-amber-400/15 border-amber-400/30"
-                  }`}
-                >
-                  {tag}
-                </span>
-              )}
-              <p className="font-display font-bold text-base text-white">{flight.airline}</p>
+              <p className="font-display font-black text-sm sm:text-base text-white tracking-tight">{flight.airline}</p>
+              <span className="font-mono text-[11px] font-bold text-slate-300 bg-white/[0.06] px-1.5 py-0.5 rounded border border-white/[0.08]">
+                {flightNum}
+              </span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5 font-medium">
-              {flight.aircraft} <span className="text-slate-600">•</span> Economy
+            <p className="text-[11px] text-slate-400 font-medium">
+              {flight.aircraft} <span className="text-slate-600">•</span> Economy Classic
             </p>
           </div>
         </div>
 
-        {/* Schedule & Animated Flight Timeline */}
-        <div className="flex items-center gap-3 sm:gap-6 flex-1 justify-center max-w-md mx-auto">
-          {/* Departure */}
-          <div className="text-right shrink-0">
-            <div className="flex items-baseline justify-end gap-1.5">
-              <p className="font-display text-lg sm:text-2xl font-black tabular-nums text-white">
-                {formatTime(flight.departure_time)}
-              </p>
-              <span className="font-display text-xs font-black text-amber-300 uppercase">
-                {flight.origin}
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-              {formatDateLabel(flight.departure_time, travelDate)}
-            </p>
-          </div>
+        <div className="flex items-center gap-2">
+          {tag && (
+            <span
+              className={`text-[9.5px] uppercase tracking-wider font-black rounded-full px-2.5 py-0.5 border flex items-center gap-1 ${
+                isReturn
+                  ? "text-cyan-300 bg-cyan-400/15 border-cyan-400/30 shadow-[0_0_8px_rgba(34,211,238,0.2)]"
+                  : "text-amber-300 bg-amber-400/15 border-amber-400/30 shadow-[0_0_8px_rgba(251,191,36,0.2)]"
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isReturn ? "bg-cyan-400" : "bg-amber-400"}`} />
+              {tag}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => history.back()}
+            className="px-3 py-1 rounded-full border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] hover:border-amber-400/40 text-[11px] font-bold text-slate-300 hover:text-white transition-all cursor-pointer flex items-center gap-1"
+          >
+            <span>✏️</span>
+            <span>Edit</span>
+          </button>
+        </div>
+      </div>
 
-          {/* Animated Flight Vector Track */}
-          <div className="flex flex-col items-center flex-1 min-w-[70px] max-w-[130px] px-2">
-            <p className="text-[10px] text-slate-300 mb-1 font-semibold tracking-wide whitespace-nowrap">
-              {flight.duration || "--"}
+      {/* Flight Route Architecture */}
+      <div className="flex items-center justify-between gap-3">
+        {/* Origin */}
+        <div className="text-left shrink-0 min-w-[70px]">
+          <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 truncate max-w-[90px]">
+            {originCity}
+          </p>
+          <div className="flex items-baseline gap-1 mt-0.5">
+            <p className="font-display text-lg sm:text-xl font-black text-white tabular-nums">
+              {formatTime(flight.departure_time)}
             </p>
-            <div className="relative w-full h-[2.5px] bg-white/10 rounded-full flex items-center overflow-visible">
-              <div
-                className={`absolute inset-0 rounded-full bg-gradient-to-r ${
-                  isReturn ? "from-cyan-400/60 to-blue-400/60" : "from-amber-400/60 to-amber-300/60"
-                }`}
-              />
-              <div className="timeline-comet absolute h-[2.5px] w-6 rounded-full bg-gradient-to-r from-transparent via-white to-transparent shadow-[0_0_8px_rgba(255,255,255,0.9)]" />
-              <div className="absolute -left-1 w-2 h-2 rounded-full bg-cyan-400 ring-2 ring-cyan-400/30" />
-              <div className="absolute left-1/2 -translate-x-1/2 -top-2 flex flex-col items-center">
-                <span className="plane-bob text-[10px] text-amber-300 select-none">✈</span>
-              </div>
-              <div className="absolute -right-1 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/30" />
-            </div>
-            <p className="text-[10px] text-slate-400 mt-1.5 font-medium whitespace-nowrap">
-              {flight.stops ? `${flight.stops} stop` : "Non-stop"}
-            </p>
+            <span className="font-display text-[11px] font-black text-amber-300 uppercase">
+              {flight.origin}
+            </span>
           </div>
-
-          {/* Arrival */}
-          <div className="text-left shrink-0">
-            <div className="flex items-baseline gap-1.5">
-              <p className="font-display text-lg sm:text-2xl font-black tabular-nums text-white">
-                {formatTime(flight.arrival_time)}
-              </p>
-              <span className="font-display text-xs font-black text-cyan-300 uppercase">
-                {flight.destination}
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-              {formatDateLabel(flight.arrival_time, travelDate)}
-            </p>
-          </div>
+          <p className="text-[10px] text-slate-400 mt-0.5 font-medium">
+            {formatDateLabel(flight.departure_time, travelDate)}
+          </p>
         </div>
 
-        {/* Change Flight CTA */}
-        <button
-          type="button"
-          onClick={() => history.back()}
-          className="relative overflow-hidden px-4 py-2 rounded-full border border-white/10 bg-white/[0.04] text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/[0.08] hover:border-amber-400/40 transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
-        >
-          <span>✏️</span>
-          <span>Edit Flight</span>
-        </button>
+        {/* Timeline Vector */}
+        <div className="flex flex-col items-center flex-1 px-2">
+          <p className="text-[10px] text-slate-200 font-extrabold tracking-wide mb-1">
+            {flight.duration || "--"}
+          </p>
+          <div className="relative w-full h-[2.5px] bg-white/10 rounded-full flex items-center overflow-visible">
+            <div
+              className={`absolute inset-0 rounded-full bg-gradient-to-r ${
+                isReturn ? "from-cyan-400 to-blue-500" : "from-amber-400 to-orange-400"
+              }`}
+            />
+            <div className="timeline-comet absolute h-[2.5px] w-6 rounded-full bg-gradient-to-r from-transparent via-white to-transparent shadow-[0_0_8px_rgba(255,255,255,1)]" />
+            <div className="absolute -left-1 w-2 h-2 rounded-full bg-cyan-400 ring-2 ring-cyan-400/40" />
+            <div className="absolute left-1/2 -translate-x-1/2 -top-2 flex flex-col items-center">
+              <span className="plane-bob text-[10px] text-amber-300 select-none">✈</span>
+            </div>
+            <div className="absolute -right-1 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/40" />
+          </div>
+          <p className="text-[9.5px] text-slate-400 mt-1 font-medium">
+            {flight.stops ? `${flight.stops} Stop` : "Direct Non-stop"}
+          </p>
+        </div>
+
+        {/* Destination */}
+        <div className="text-right shrink-0 min-w-[70px]">
+          <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 truncate max-w-[90px]">
+            {destCity}
+          </p>
+          <div className="flex items-baseline justify-end gap-1 mt-0.5">
+            <p className="font-display text-lg sm:text-xl font-black text-white tabular-nums">
+              {formatTime(flight.arrival_time)}
+            </p>
+            <span className="font-display text-[11px] font-black text-cyan-300 uppercase">
+              {flight.destination}
+            </span>
+          </div>
+          <p className="text-[10px] text-slate-400 mt-0.5 font-medium">
+            {formatDateLabel(flight.arrival_time, travelDate)}
+          </p>
+        </div>
+      </div>
+
+      {/* Bottom Info Strip */}
+      <div className="mt-3.5 pt-2.5 border-t border-white/[0.04] flex items-center justify-between text-[10px] text-slate-400">
+        <span>🧳 7kg Cabin + 15kg Check-in Included</span>
+        <span className="text-emerald-400 font-semibold">Seat: Choose Next Step</span>
       </div>
     </motion.div>
   )
@@ -919,15 +1003,20 @@ function SavedPassengerSection({
   if (savedPassengers.length === 0) return null
 
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 backdrop-blur-md">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-xs font-bold text-slate-300 flex items-center gap-2">
-          <span>⚡</span>
-          <span>Quick Autofill from Saved Profiles</span>
-        </p>
-        <span className="text-[11px] text-slate-500 hidden sm:inline">Click a card to populate fields</span>
+    <div className="rounded-2xl border border-white/[0.10] bg-[#070E1A]/80 p-4 sm:p-5 backdrop-blur-xl shadow-[inset_0_1px_3px_rgba(255,255,255,0.05)]">
+      <div className="flex items-center justify-between mb-3.5 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <span className="w-5 h-5 rounded-full bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-xs text-amber-300">
+            ⚡
+          </span>
+          <p className="text-xs font-extrabold uppercase tracking-wider text-slate-200">
+            Saved Frequent Traveler Profiles
+          </p>
+        </div>
+        <span className="text-[11px] text-slate-400 font-medium">Click a passport card to instantly populate credentials</span>
       </div>
-      <div className="flex flex-wrap gap-2.5">
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
         {savedPassengers.map((sp) => {
           const isThisSlot = sp.id === currentSourceId
           const usedElsewhere = usedSavedIds.has(sp.id) && !isThisSlot
@@ -937,58 +1026,63 @@ function SavedPassengerSection({
               type="button"
               disabled={usedElsewhere}
               onClick={() => onUseSaved(sp)}
-              className={`group flex items-center gap-2.5 pl-2.5 pr-4 py-2 rounded-2xl border text-left transition-all cursor-pointer ${
+              className={`group flex items-center gap-3 p-3 rounded-2xl border text-left transition-all cursor-pointer relative overflow-hidden ${
                 isThisSlot
-                  ? "border-amber-400/70 bg-amber-400/10 text-amber-200 shadow-[0_0_15px_rgba(251,191,36,0.15)] ring-1 ring-amber-400/30"
+                  ? "border-amber-400/80 bg-amber-400/15 text-amber-100 shadow-[0_0_20px_rgba(251,191,36,0.2)] ring-2 ring-amber-400/40"
                   : usedElsewhere
-                  ? "border-white/[0.05] bg-white/[0.01] text-slate-600 cursor-not-allowed opacity-60"
-                  : "border-white/[0.1] bg-white/[0.03] hover:border-amber-400/40 hover:bg-white/[0.06] text-slate-200"
+                  ? "border-white/[0.05] bg-white/[0.01] text-slate-600 cursor-not-allowed opacity-50"
+                  : "border-white/[0.10] bg-white/[0.03] hover:border-amber-400/50 hover:bg-white/[0.07] text-slate-200"
               }`}
             >
-              <span
-                className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black shrink-0 transition-transform ${
+              <div
+                className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black shrink-0 transition-transform ${
                   isThisSlot
-                    ? "bg-amber-400/25 text-amber-300 ring-1 ring-amber-400/40"
+                    ? "bg-amber-400/30 text-amber-300 ring-2 ring-amber-400/50"
                     : usedElsewhere
                     ? "bg-white/[0.05] text-slate-600"
-                    : "bg-white/[0.08] text-slate-300 group-hover:scale-105"
+                    : "bg-white/[0.08] text-slate-200 group-hover:scale-105"
                 }`}
               >
                 {(sp.first_name?.[0] ?? "?").toUpperCase()}
                 {(sp.last_name?.[0] ?? "").toUpperCase()}
-              </span>
-              <span className="text-xs">
-                <span className="block font-bold leading-tight">
-                  {sp.title ? `${sp.title} ` : ""}
-                  {sp.first_name} {sp.last_name}
-                </span>
-                {sp.date_of_birth && (
-                  <span className="block text-[10px] text-slate-400 leading-tight mt-0.5 font-medium">
-                    DOB {sp.date_of_birth}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="block font-display font-bold text-sm text-white truncate">
+                    {sp.title ? `${sp.title} ` : ""}
+                    {sp.first_name} {sp.last_name}
                   </span>
-                )}
-              </span>
+                </div>
+                <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-400">
+                  {sp.date_of_birth && <span>DOB: {sp.date_of_birth}</span>}
+                  {sp.nationality && <span>• {sp.nationality}</span>}
+                </div>
+              </div>
+              {isThisSlot && (
+                <span className="text-amber-300 text-xs font-bold shrink-0">✓ Applied</span>
+              )}
               {usedElsewhere && (
-                <span className="text-[9px] uppercase font-bold tracking-wider ml-1 shrink-0 text-slate-500 bg-white/[0.04] px-1.5 py-0.5 rounded">
+                <span className="text-[9px] uppercase font-bold tracking-wider text-slate-500 bg-white/[0.04] px-1.5 py-0.5 rounded">
                   In Use
                 </span>
               )}
             </button>
           )
         })}
+
         <button
           type="button"
           onClick={onUseBlank}
-          className={`flex items-center gap-2 px-4 py-2 rounded-2xl border border-dashed text-xs font-bold transition-all cursor-pointer ${
+          className={`flex items-center justify-center gap-2 p-3 rounded-2xl border border-dashed text-xs font-bold transition-all cursor-pointer ${
             !currentSourceId
-              ? "border-cyan-400/70 bg-cyan-400/10 text-cyan-200 ring-1 ring-cyan-400/30 shadow-[0_0_12px_rgba(34,211,238,0.15)]"
-              : "border-cyan-400/30 text-cyan-300 hover:bg-cyan-400/[0.06] hover:border-cyan-400/50"
+              ? "border-cyan-400/80 bg-cyan-400/15 text-cyan-200 ring-2 ring-cyan-400/40 shadow-[0_0_15px_rgba(34,211,238,0.2)]"
+              : "border-cyan-400/40 text-cyan-300 hover:bg-cyan-400/[0.08] hover:border-cyan-400/60"
           }`}
         >
-          <span className="w-4 h-4 rounded-full bg-cyan-400/20 flex items-center justify-center text-[11px] leading-none">
+          <span className="w-5 h-5 rounded-full bg-cyan-400/20 flex items-center justify-center text-xs">
             +
           </span>
-          <span>New / Blank</span>
+          <span>New / Blank Traveler</span>
         </button>
       </div>
     </div>
@@ -1041,7 +1135,7 @@ function PassengerCard({
 
   return (
     <div
-      className="relative bg-gradient-to-br from-[#0C1729]/95 via-[#0F1E33]/98 to-[#0A1424]/95 border border-white/[0.12] rounded-3xl overflow-hidden transition-all duration-500 ease-out card-enter ticket-edge shadow-[0_15px_40px_rgba(0,0,0,0.35)] backdrop-blur-2xl"
+      className="relative bg-gradient-to-br from-[#0C1729]/95 via-[#0F1E33]/98 to-[#0A1424]/95 border border-white/[0.12] rounded-3xl overflow-hidden transition-all duration-500 ease-out card-enter ticket-edge shadow-[0_20px_50px_rgba(0,0,0,0.4)] backdrop-blur-2xl"
       style={{
         transitionDelay: mounted ? `${entranceDelay}ms` : "0ms",
         opacity: mounted ? 1 : 0,
@@ -1050,7 +1144,7 @@ function PassengerCard({
     >
       {/* Top indicator hairline */}
       <div
-        className={`absolute top-0 left-0 right-0 h-[2px] transition-all duration-500 bg-gradient-to-r ${
+        className={`absolute top-0 left-0 right-0 h-[2.5px] transition-all duration-500 bg-gradient-to-r ${
           isComplete
             ? "from-emerald-400 via-emerald-300 to-transparent"
             : isExpanded
@@ -1059,6 +1153,7 @@ function PassengerCard({
         }`}
       />
 
+      {/* Accordion Header Bar */}
       <button
         type="button"
         onClick={isExpanded ? onCollapseWithValidation : onToggle}
@@ -1066,26 +1161,39 @@ function PassengerCard({
       >
         <div className="flex items-center gap-3.5 flex-wrap">
           <span
-            className={`w-8 h-8 rounded-xl border flex items-center justify-center text-xs font-display font-extrabold ${paxColor.bg} ${paxColor.ring} ${paxColor.text} ${paxColor.glow}`}
+            className={`w-9 h-9 rounded-xl border flex items-center justify-center text-xs font-display font-black ${paxColor.bg} ${paxColor.ring} ${paxColor.text} ${paxColor.glow}`}
           >
             {index + 1}
           </span>
-          <span className="font-display font-bold text-base text-white tracking-tight">
-            {passenger.firstName ? `${passenger.title ? `${passenger.title} ` : ""}${passenger.firstName} ${passenger.lastName}` : label}
-          </span>
-          {passenger.isPrimaryContact && (
-            <span className="inline-flex items-center gap-1 text-[10px] uppercase font-extrabold tracking-wider text-amber-300 bg-amber-400/10 border border-amber-400/30 rounded-full px-2.5 py-0.5 shadow-[0_0_10px_rgba(251,191,36,0.15)]">
-              <span>★</span> Primary Contact
-            </span>
-          )}
-          {isComplete && !isExpanded && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300 bg-emerald-400/10 border border-emerald-400/25 rounded-full px-2.5 py-0.5 check-pop">
-              <span>✓</span> Complete
-            </span>
-          )}
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-display font-black text-base sm:text-lg text-white tracking-tight">
+                {passenger.firstName ? `${passenger.title ? `${passenger.title} ` : ""}${passenger.firstName} ${passenger.lastName}` : label}
+              </span>
+              {passenger.isPrimaryContact && (
+                <span className="inline-flex items-center gap-1 text-[10px] uppercase font-black tracking-wider text-amber-300 bg-amber-400/15 border border-amber-400/30 rounded-full px-2.5 py-0.5 shadow-[0_0_12px_rgba(251,191,36,0.2)]">
+                  <span>★</span> Primary Contact
+                </span>
+              )}
+              {isComplete ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300 bg-emerald-400/10 border border-emerald-400/25 rounded-full px-2.5 py-0.5 check-pop">
+                  <span>✓</span> Verified & Complete
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold text-slate-400 bg-white/[0.04] border border-white/[0.08] rounded-full px-2 py-0.5">
+                  Identity Pending
+                </span>
+              )}
+            </div>
+            {passenger.dob && (
+              <p className="text-[11px] text-slate-400 mt-0.5 font-medium">
+                DOB: {passenger.dob} • Nationality: {passenger.nationality || "India"}
+              </p>
+            )}
+          </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 sm:gap-4">
           {canRemove && (
             <span
               role="button"
@@ -1093,29 +1201,62 @@ function PassengerCard({
                 e.stopPropagation()
                 onRemove()
               }}
-              className="text-xs font-semibold text-rose-400 hover:text-rose-300 transition-colors flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-rose-400/10 cursor-pointer"
+              className="text-xs font-bold text-rose-400 hover:text-rose-300 transition-colors flex items-center gap-1 px-2.5 py-1 rounded-lg hover:bg-rose-400/10 cursor-pointer"
             >
               <span aria-hidden>🗑</span> Remove
             </span>
           )}
-          {!isExpanded && (
-            <span className="text-xs font-bold text-cyan-300 group-hover:text-cyan-200 transition-colors px-2.5 py-1 rounded-full bg-cyan-400/10 border border-cyan-400/20">
-              Edit
+          <span className="text-xs font-bold text-cyan-300 group-hover:text-cyan-200 transition-colors px-3 py-1 rounded-full bg-cyan-400/10 border border-cyan-400/25 flex items-center gap-1">
+            <span>{isExpanded ? "Collapse" : "Edit Fields"}</span>
+            <span
+              className="transition-transform duration-300 ease-out inline-block"
+              style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
+              aria-hidden
+            >
+              ▾
             </span>
-          )}
-          <span
-            className="text-slate-400 group-hover:text-white transition-transform duration-300 ease-out text-sm"
-            style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
-            aria-hidden
-          >
-            ▾
           </span>
         </div>
       </button>
 
+      {/* Minimized / Collapsed Traveler Summary Bar */}
+      {!isExpanded && (
+        <div className="px-6 py-3.5 bg-white/[0.015] border-t border-white/[0.06] flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3 text-xs flex-wrap">
+            <span className="text-slate-400">Configured ID:</span>
+            <span className="font-display font-bold text-white">
+              {passenger.firstName ? `${passenger.title ? `${passenger.title} ` : ""}${passenger.firstName} ${passenger.lastName}` : "Pending input"}
+            </span>
+            {passenger.dob && (
+              <span className="text-slate-400">• DOB: <strong className="text-slate-300">{passenger.dob}</strong></span>
+            )}
+            {passenger.gender && (
+              <span className="text-slate-400">• Gender: <strong className="text-slate-300">{passenger.gender}</strong></span>
+            )}
+            {passenger.nationality && (
+              <span className="text-slate-400">• <strong className="text-slate-300">{passenger.nationality}</strong></span>
+            )}
+            {passenger.email && (
+              <span className="text-slate-400 hidden md:inline">• Email: <strong className="text-slate-300">{passenger.email}</strong></span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onToggle}
+            className="text-xs font-bold text-cyan-300 hover:text-cyan-200 transition-colors flex items-center gap-1 cursor-pointer"
+          >
+            <span>Edit Full Details</span>
+            <span>→</span>
+          </button>
+        </div>
+      )}
+
+      {/* Expanded Interactive Form Pods */}
       <div className="grid transition-all duration-400 ease-out" style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr" }}>
         <div className="overflow-hidden">
-          <div className={`px-6 pb-6 pt-2 space-y-5 transition-opacity duration-300 ${isExpanded ? "opacity-100 delay-100" : "opacity-0"}`}>
+          <div className={`px-6 pb-6 pt-2 space-y-6 transition-opacity duration-300 ${isExpanded ? "opacity-100 delay-100" : "opacity-0"}`}>
+            
+            {/* Quick Autofill Profiles */}
             <SavedPassengerSection
               savedPassengers={savedPassengers}
               usedSavedIds={usedSavedIds}
@@ -1124,109 +1265,144 @@ function PassengerCard({
               onUseBlank={onUseBlank}
             />
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <Field label="Title">
-                <Select
-                  value={passenger.title}
-                  error={!!errors.title}
-                  onChange={(v) => onChange({ title: v })}
-                  options={["Mr", "Mrs", "Ms", "Dr"]}
-                  placeholder="Select"
-                />
-              </Field>
-              <Field label="First Name" className="col-span-1">
-                <TextInput
-                  value={passenger.firstName}
-                  error={!!errors.firstName}
-                  onChange={(v) => onChange({ firstName: v })}
-                  placeholder="Arjun"
-                />
-              </Field>
-              <Field label="Middle Name (Optional)">
-                <TextInput
-                  value={passenger.middleName}
-                  onChange={(v) => onChange({ middleName: v })}
-                  placeholder="Kumar"
-                />
-              </Field>
-              <Field label="Last Name">
-                <TextInput
-                  value={passenger.lastName}
-                  error={!!errors.lastName}
-                  onChange={(v) => onChange({ lastName: v })}
-                  placeholder="Sharma"
-                />
-              </Field>
+            {/* POD 1: LEGAL IDENTITY PARTICULARS */}
+            <div className="rounded-2xl border border-white/[0.08] bg-[#070E1A]/60 p-4 sm:p-5 backdrop-blur-md">
+              <div className="flex items-center justify-between mb-4 pb-2.5 border-b border-white/[0.06]">
+                <p className="text-xs font-extrabold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                  <span>👤</span>
+                  <span>1. Legal Identification (as per Gov ID)</span>
+                </p>
+                <span className="text-[10.5px] text-slate-400 font-medium hidden sm:inline">Must match Aadhaar or Passport</span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <Field label="Title">
+                  <Select
+                    value={passenger.title}
+                    error={!!errors.title}
+                    onChange={(v) => onChange({ title: v })}
+                    options={["Mr", "Mrs", "Ms", "Dr"]}
+                    placeholder="Select"
+                  />
+                </Field>
+                <Field label="First Name" className="col-span-1">
+                  <TextInput
+                    value={passenger.firstName}
+                    error={!!errors.firstName}
+                    onChange={(v) => onChange({ firstName: v })}
+                    placeholder="e.g. Arjun"
+                  />
+                </Field>
+                <Field label="Middle Name (Optional)">
+                  <TextInput
+                    value={passenger.middleName}
+                    onChange={(v) => onChange({ middleName: v })}
+                    placeholder="e.g. Kumar"
+                  />
+                </Field>
+                <Field label="Last Name">
+                  <TextInput
+                    value={passenger.lastName}
+                    error={!!errors.lastName}
+                    onChange={(v) => onChange({ lastName: v })}
+                    placeholder="e.g. Sharma"
+                  />
+                </Field>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <Field label="Date of Birth">
-                <TextInput
-                  type="date"
-                  value={passenger.dob}
-                  error={!!errors.dob}
-                  onChange={(v) => onChange({ dob: v })}
-                />
-              </Field>
-              <Field label="Gender">
-                <Select
-                  value={passenger.gender}
-                  error={!!errors.gender}
-                  onChange={(v) => onChange({ gender: v })}
-                  options={["Male", "Female", "Other"]}
-                  placeholder="Select"
-                />
-              </Field>
-              <Field label="Nationality">
-                <Select
-                  value={passenger.nationality}
-                  error={!!errors.nationality}
-                  onChange={(v) => onChange({ nationality: v })}
-                  options={["India", "United States", "United Kingdom", "UAE", "Singapore"]}
-                  placeholder="Select"
-                />
-              </Field>
-              <Field label="Frequent Flyer (Optional)">
-                <TextInput
-                  value={passenger.frequentFlyer}
-                  onChange={(v) => onChange({ frequentFlyer: v })}
-                  placeholder="AI12345678"
-                />
-              </Field>
+            {/* POD 2: TRAVEL CREDENTIALS & FREQUENT FLYER */}
+            <div className="rounded-2xl border border-white/[0.08] bg-[#070E1A]/60 p-4 sm:p-5 backdrop-blur-md">
+              <div className="flex items-center justify-between mb-4 pb-2.5 border-b border-white/[0.06]">
+                <p className="text-xs font-extrabold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                  <span>🛫</span>
+                  <span>2. Travel Credentials & Immigration</span>
+                </p>
+                <span className="text-[10.5px] text-slate-400 font-medium hidden sm:inline">Required for airline manifest</span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <Field label="Date of Birth">
+                  <TextInput
+                    type="date"
+                    value={passenger.dob}
+                    error={!!errors.dob}
+                    onChange={(v) => onChange({ dob: v })}
+                  />
+                </Field>
+                <Field label="Gender">
+                  <Select
+                    value={passenger.gender}
+                    error={!!errors.gender}
+                    onChange={(v) => onChange({ gender: v })}
+                    options={["Male", "Female", "Other"]}
+                    placeholder="Select"
+                  />
+                </Field>
+                <Field label="Nationality">
+                  <Select
+                    value={passenger.nationality}
+                    error={!!errors.nationality}
+                    onChange={(v) => onChange({ nationality: v })}
+                    options={["India", "United States", "United Kingdom", "UAE", "Singapore"]}
+                    placeholder="Select"
+                  />
+                </Field>
+                <Field label="Frequent Flyer (Optional)">
+                  <TextInput
+                    value={passenger.frequentFlyer}
+                    onChange={(v) => onChange({ frequentFlyer: v })}
+                    placeholder="e.g. AI12345678"
+                  />
+                </Field>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Email Address" helper="For ticket & flight updates">
-                <TextInput
-                  type="email"
-                  value={passenger.email}
-                  error={!!errors.email}
-                  errorText={errors.email}
-                  onChange={(v) => onChange({ email: v })}
-                  placeholder="arjun.sharma@email.com"
-                />
-              </Field>
-              <Field label="Mobile Number" helper="For instant SMS boarding alerts">
-                <PhoneInput
-                  countryCode={passenger.countryCode}
-                  mobile={passenger.mobile}
-                  error={!!errors.mobile}
-                  errorText={errors.mobile}
-                  onCountryChange={(v) => onChange({ countryCode: v })}
-                  onMobileChange={(v) => onChange({ mobile: v })}
-                />
-              </Field>
+            {/* POD 3: DIRECT FLIGHT NOTIFICATIONS & CONTACT */}
+            <div className="rounded-2xl border border-white/[0.08] bg-[#070E1A]/60 p-4 sm:p-5 backdrop-blur-md">
+              <div className="flex items-center justify-between mb-4 pb-2.5 border-b border-white/[0.06]">
+                <p className="text-xs font-extrabold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                  <span>📱</span>
+                  <span>3. E-Ticket & Gate Alert Delivery</span>
+                </p>
+                <span className="text-[10.5px] text-slate-400 font-medium hidden sm:inline">Instant boarding pass & gate change notifications</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Email Address" helper="For e-ticket PDF & receipts">
+                  <TextInput
+                    type="email"
+                    value={passenger.email}
+                    error={!!errors.email}
+                    errorText={errors.email}
+                    onChange={(v) => onChange({ email: v })}
+                    placeholder="e.g. traveller@email.com"
+                  />
+                </Field>
+                <Field label="Mobile Number" helper="For live gate SMS & DigiYatra alerts">
+                  <PhoneInput
+                    countryCode={passenger.countryCode}
+                    mobile={passenger.mobile}
+                    error={!!errors.mobile}
+                    errorText={errors.mobile}
+                    onCountryChange={(v) => onChange({ countryCode: v })}
+                    onMobileChange={(v) => onChange({ mobile: v })}
+                  />
+                </Field>
+              </div>
             </div>
 
-            <div className="pt-2 border-t border-white/[0.06]">
-              <label className="flex items-center gap-3 cursor-pointer select-none group bg-white/[0.02] border border-white/[0.06] rounded-2xl p-3.5 hover:bg-white/[0.04] transition-colors">
+            {/* Primary Contact Toggle Glass Card */}
+            <div className="pt-1">
+              <label className="flex items-center gap-3.5 cursor-pointer select-none group bg-white/[0.03] border border-white/[0.08] rounded-2xl p-4 hover:bg-white/[0.05] transition-all shadow-sm">
                 <Checkbox checked={passenger.isPrimaryContact} onChange={onSetPrimaryContact} />
                 <div className="flex-1">
-                  <p className={`text-xs font-bold transition-colors ${passenger.isPrimaryContact ? "text-cyan-300" : "text-slate-200 group-hover:text-white"}`}>
-                    Designate as Primary Contact
+                  <p className={`text-xs font-extrabold transition-colors flex items-center gap-1.5 ${passenger.isPrimaryContact ? "text-amber-300" : "text-slate-200 group-hover:text-white"}`}>
+                    <span>★</span>
+                    <span>Designate as Primary Contact for this Booking</span>
                   </p>
                   <p className="text-[11px] text-slate-400 mt-0.5">
-                    All e-tickets, terminal gates, and flight status notifications will be sent to this traveller
+                    Official e-tickets, DigiYatra barcode, terminal gates, and flight status notifications will be delivered to this traveler.
                   </p>
                 </div>
               </label>
