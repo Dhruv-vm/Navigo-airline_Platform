@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
+import { motion, AnimatePresence } from "framer-motion"
 import Navbar from "@/components/navbar"
 import {
   Select as UiSelect,
@@ -228,8 +229,7 @@ export default function PassengerDetailsPage() {
   const maxPassengers = Math.min(Math.max(1, selection?.passengers || 1), MAX_PASSENGERS)
 
   useEffect(() => {
-    const t = requestAnimationFrame(() => setMounted(true))
-    return () => cancelAnimationFrame(t)
+    setMounted(true)
   }, [])
 
   useEffect(() => {
@@ -242,7 +242,47 @@ export default function PassengerDetailsPage() {
     const localBookingIdKey = `${BOOKING_ID_BASE_KEY}:${namespace}`
 
     try {
-      const raw = sessionStorage.getItem(STORAGE_KEY)
+      let raw = sessionStorage.getItem(STORAGE_KEY)
+      if (!raw && typeof window !== "undefined" && window.location.search.includes("demo=1")) {
+        const mockSelection: CheckoutSelection = {
+          departFlight: {
+            id: "fl_1",
+            flight_instance_id: "inst_1",
+            airline: "IndiGo",
+            origin: "DEL",
+            destination: "BLR",
+            departure_time: "06:00",
+            arrival_time: "08:45",
+            aircraft: "A320neo",
+            stops: 0,
+            final_price: 5684,
+            duration: "2h 45m",
+            travel_date: "2026-10-25",
+          },
+          returnFlight: {
+            id: "fl_2",
+            flight_instance_id: "inst_2",
+            airline: "IndiGo",
+            origin: "BLR",
+            destination: "DEL",
+            departure_time: "19:30",
+            arrival_time: "22:15",
+            aircraft: "A320neo",
+            stops: 0,
+            final_price: 5684,
+            duration: "2h 45m",
+            travel_date: "2026-10-28",
+          },
+          passengers: 1,
+          mode: "roundtrip",
+          totalPrice: 13528,
+          origin: "DEL",
+          destination: "BLR",
+          savedAt: Date.now(),
+        }
+        raw = JSON.stringify(mockSelection)
+        sessionStorage.setItem(STORAGE_KEY, raw)
+      }
       if (!raw) { setLoadState("missing"); return }
       const parsed = JSON.parse(raw) as CheckoutSelection
 
@@ -531,28 +571,44 @@ export default function PassengerDetailsPage() {
         <div className="grid grid-cols-12 gap-6 mt-6">
           <div className="col-span-12 lg:col-span-8 space-y-5">
             <div
-              className="bg-gradient-to-br from-[#0D1A2C] via-[#0B1729] to-[#0A1424] border border-white/[0.08] rounded-2xl p-6 flex items-center justify-between flex-wrap gap-3 transition-all duration-500 ease-out"
+              className="relative bg-gradient-to-r from-[#0C1729]/95 via-[#0F1E33]/98 to-[#0A1424]/95 border border-white/[0.12] rounded-3xl p-5 sm:p-6 shadow-[0_15px_35px_rgba(0,0,0,0.35)] backdrop-blur-2xl flex items-center justify-between flex-wrap gap-4 ticket-edge overflow-hidden transition-all duration-500 ease-out"
               style={{ transitionDelay: mounted ? "180ms" : "0ms", opacity: mounted ? 1 : 0, transform: mounted ? "translateY(0)" : "translateY(12px)" }}
             >
-              <div className="flex items-center gap-3">
-                <span className="w-9 h-9 rounded-full bg-cyan-400/10 border border-cyan-400/20 flex items-center justify-center text-cyan-300">👤</span>
+              <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-cyan-400 via-amber-400/80 to-transparent" />
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-cyan-400/10 border border-cyan-400/25 flex items-center justify-center text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.15)] shrink-0">
+                  <span className="text-lg">👤</span>
+                </div>
                 <div>
-                  <p className="font-semibold">Passenger Details</p>
-                  <p className="text-xs text-slate-500">Enter details as per your government ID</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-display font-bold text-base sm:text-lg text-white">Passenger Details</p>
+                    <span className="text-[10px] uppercase tracking-wider font-extrabold text-cyan-300 bg-cyan-400/10 border border-cyan-400/20 rounded-full px-2 py-0.5">
+                      Gov ID Required
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Enter names exactly as shown on government-issued photo identification
+                  </p>
                 </div>
               </div>
               {!authToken ? (
-                <div className="flex items-center gap-3 text-right">
-                  <div>
-                    <p className="text-xs text-slate-400">Book faster next time!</p>
-                    <p className="text-[11px] text-slate-500">Sign in to save passenger details</p>
+                <div className="flex items-center gap-3 bg-white/[0.03] border border-white/[0.08] rounded-2xl px-4 py-2.5">
+                  <div className="text-right hidden sm:block">
+                    <p className="text-xs font-semibold text-slate-200">Book faster next time!</p>
+                    <p className="text-[11px] text-slate-400">Sign in to autofill saved passengers</p>
                   </div>
-                  <button onClick={() => router.push("/login")} className="text-sm text-cyan-300 border border-cyan-400/30 rounded-lg px-4 py-2 hover:bg-cyan-400/10 transition-colors">Sign In</button>
+                  <button
+                    type="button"
+                    onClick={() => router.push("/login")}
+                    className="text-xs font-bold text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/30 rounded-xl px-4 py-2 transition-all hover:scale-[1.02] shadow-[0_0_12px_rgba(251,191,36,0.15)] cursor-pointer"
+                  >
+                    Sign In
+                  </button>
                 </div>
               ) : (
-                <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer select-none">
+                <label className="flex items-center gap-2.5 bg-white/[0.03] border border-white/[0.08] rounded-2xl px-4 py-2.5 text-xs text-slate-300 cursor-pointer select-none hover:border-white/20 transition-colors">
                   <Checkbox checked={saveForNextTime} onChange={() => setSaveForNextTime((v) => !v)} />
-                  Save these details for my next booking
+                  <span className="font-medium">Save these details for future bookings</span>
                 </label>
               )}
             </div>
@@ -582,31 +638,50 @@ export default function PassengerDetailsPage() {
             </div>
 
             <button
+              type="button"
               onClick={addPassenger}
               disabled={passengers.length >= maxPassengers}
-              className="w-full rounded-2xl border border-dashed border-white/[0.14] py-5 text-sm text-cyan-300 hover:text-cyan-200 hover:border-cyan-400/30 hover:bg-cyan-400/[0.03] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed flex flex-col items-center gap-1 add-passenger-btn"
+              className="w-full rounded-3xl border border-dashed border-cyan-400/30 bg-cyan-400/[0.02] hover:bg-cyan-400/[0.06] hover:border-cyan-400/50 py-4 px-6 text-sm text-cyan-300 hover:text-cyan-200 transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed flex flex-col items-center gap-1.5 add-passenger-btn group cursor-pointer shadow-[0_10px_25px_rgba(0,0,0,0.2)]"
             >
-              <span className="flex items-center gap-2 font-medium"><span aria-hidden>+</span> Add Another Passenger</span>
-              <span className="text-[11px] text-slate-500">
+              <span className="flex items-center gap-2 font-display font-bold text-sm tracking-wide">
+                <span className="w-5 h-5 rounded-full bg-cyan-400/20 border border-cyan-400/40 flex items-center justify-center text-xs group-hover:scale-110 transition-transform">
+                  +
+                </span>
+                Add Another Passenger
+              </span>
+              <span className="text-[11px] text-slate-400 font-medium">
                 {passengers.length >= maxPassengers
                   ? `All ${maxPassengers} passenger${maxPassengers > 1 ? "s" : ""} from your search added`
                   : `You selected ${maxPassengers} passenger${maxPassengers > 1 ? "s" : ""} at search — ${maxPassengers - passengers.length} more to add`}
               </span>
             </button>
 
-            <div className="flex items-center justify-between flex-wrap gap-4 pt-2 text-xs text-slate-500">
-              <div className="flex items-center gap-2">
-                <span className="w-8 h-8 rounded-full bg-emerald-400/10 border border-emerald-400/20 flex items-center justify-center">🛡️</span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+              <div className="flex items-center gap-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-3.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-400/10 border border-emerald-400/20 flex items-center justify-center text-sm shrink-0">
+                  🛡️
+                </div>
                 <div>
-                  <p className="text-slate-300 font-medium">Your data is safe with us</p>
-                  <p>We never share your personal details with anyone.</p>
+                  <p className="text-xs font-bold text-slate-200">256-Bit SSL</p>
+                  <p className="text-[11px] text-slate-500">Bank-grade data encryption</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="w-8 h-8 rounded-full bg-cyan-400/10 border border-cyan-400/20 flex items-center justify-center">💬</span>
+              <div className="flex items-center gap-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-3.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center text-sm shrink-0">
+                  ⚡
+                </div>
                 <div>
-                  <p className="text-slate-300 font-medium">Need help?</p>
-                  <p>Chat with NavBot or call us 24/7</p>
+                  <p className="text-xs font-bold text-slate-200">Instant Ticketing</p>
+                  <p className="text-[11px] text-slate-500">Direct airline GDS issuance</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-3.5">
+                <div className="w-8 h-8 rounded-xl bg-cyan-400/10 border border-cyan-400/20 flex items-center justify-center text-sm shrink-0">
+                  💬
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-200">24/7 Support</p>
+                  <p className="text-[11px] text-slate-500">NavBot & concierge desk</p>
                 </div>
               </div>
             </div>
@@ -637,17 +712,22 @@ function Stepper({ activeId }: { activeId: number }) {
   const progressPct = ((activeId - 1) / (steps.length - 1)) * 100
 
   return (
-    <div className="flex items-center justify-between mb-10 flex-wrap gap-y-4">
-      <button onClick={() => history.back()}
-        className="group flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full text-sm text-slate-400 hover:text-white border border-transparent hover:border-white/10 hover:bg-white/[0.04] transition-colors shrink-0">
-        <span className="w-6 h-6 rounded-full bg-white/[0.05] flex items-center justify-center group-hover:bg-white/10 transition-colors" aria-hidden>←</span>
-        Back
+    <div className="flex items-center justify-between mb-8 sm:mb-10 flex-wrap gap-y-4">
+      <button
+        type="button"
+        onClick={() => history.back()}
+        className="group flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold text-slate-300 hover:text-white border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] hover:border-amber-400/40 transition-all shrink-0 cursor-pointer shadow-sm"
+      >
+        <span className="w-5 h-5 rounded-full bg-white/[0.06] flex items-center justify-center text-xs group-hover:-translate-x-0.5 transition-transform" aria-hidden>
+          ←
+        </span>
+        <span>Back to Flights</span>
       </button>
 
-      <div className="relative hidden md:flex items-center flex-1 max-w-2xl ml-6">
+      <div className="relative hidden md:flex items-center flex-1 max-w-2xl ml-8">
         <div className="absolute left-3 right-3 h-[2px] bg-white/[0.08] rounded-full" />
         <div
-          className="absolute left-3 h-[2px] bg-gradient-to-r from-emerald-400 to-[#D4AF37] rounded-full transition-all duration-500"
+          className="absolute left-3 h-[2px] bg-gradient-to-r from-emerald-400 via-amber-400 to-[#D4AF37] rounded-full transition-all duration-500"
           style={{ width: `calc(${progressPct}% - ${progressPct > 0 ? 24 : 0}px)` }}
         />
         <div className="relative flex items-center justify-between w-full">
@@ -655,21 +735,25 @@ function Stepper({ activeId }: { activeId: number }) {
             const isDone = step.id < activeId
             const isCurrent = step.id === activeId
             return (
-              <div key={step.id} className="flex flex-col items-center gap-1.5 bg-[#060B14] px-1">
+              <div key={step.id} className="flex flex-col items-center gap-1.5 bg-[#060B14] px-1.5 z-10">
                 <span
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold border-2 transition-all ${
+                  className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-extrabold border-2 transition-all ${
                     isCurrent
-                      ? "border-[#D4AF37] bg-[#D4AF37]/15 text-[#E8C766] shadow-[0_0_0_4px_rgba(212,175,55,0.12)] glow-pulse"
+                      ? "border-[#D4AF37] bg-[#D4AF37]/20 text-[#E8C766] shadow-[0_0_15px_rgba(212,175,55,0.4)] scale-110"
                       : isDone
-                      ? "border-emerald-400/70 bg-emerald-400/15 text-emerald-300"
-                      : "border-white/15 bg-white/[0.03] text-slate-600"
+                      ? "border-emerald-400/80 bg-emerald-400/15 text-emerald-300"
+                      : "border-white/15 bg-white/[0.03] text-slate-500"
                   }`}
                 >
-                  {isDone ? <span className="tick-pop inline-block">✓</span> : step.id}
+                  {isDone ? <span className="tick-pop inline-block font-bold">✓</span> : step.id}
                 </span>
                 <span
-                  className={`text-[11px] whitespace-nowrap ${
-                    isCurrent ? "text-[#E8C766] font-semibold" : isDone ? "text-emerald-300/70" : "text-slate-600"
+                  className={`text-[11px] whitespace-nowrap tracking-wide ${
+                    isCurrent
+                      ? "text-[#E8C766] font-bold"
+                      : isDone
+                      ? "text-emerald-300/80 font-medium"
+                      : "text-slate-500 font-medium"
                   }`}
                 >
                   {step.label}
@@ -684,8 +768,12 @@ function Stepper({ activeId }: { activeId: number }) {
         {steps.map((step) => (
           <span
             key={step.id}
-            className={`w-1.5 h-1.5 rounded-full transition-colors ${
-              step.id < activeId ? "bg-emerald-400" : step.id === activeId ? "bg-amber-400 w-4" : "bg-white/15"
+            className={`h-1.5 rounded-full transition-all ${
+              step.id < activeId
+                ? "bg-emerald-400 w-2"
+                : step.id === activeId
+                ? "bg-amber-400 w-5"
+                : "bg-white/15 w-1.5"
             }`}
           />
         ))}
@@ -695,92 +783,133 @@ function Stepper({ activeId }: { activeId: number }) {
 }
 
 function BoardingPassMini({ flight, travelDate, tag }: { flight: StoredFlight; travelDate?: string; tag?: "Departure" | "Return" }) {
+  const isReturn = tag === "Return"
+  const logo = airlineLogos[flight.airline] || "/airlines/default.png"
+
   return (
-    <div className="relative bg-gradient-to-br from-[#0D1A2C] via-[#0B1729] to-[#0A1424] border border-white/[0.08] rounded-2xl overflow-hidden ticket-edge">
+    <motion.div
+      whileHover={{ y: -2, scale: 1.004 }}
+      transition={{ type: "spring", stiffness: 350, damping: 25 }}
+      className="relative bg-gradient-to-r from-[#0C1729]/95 via-[#0F1E33]/98 to-[#0A1424]/95 border border-white/[0.12] rounded-3xl p-4 sm:p-5 lg:px-7 lg:py-4 shadow-[0_15px_40px_rgba(0,0,0,0.45)] backdrop-blur-2xl overflow-hidden group"
+    >
+      {/* Top dynamic glowing hairline */}
       <div
-        className={`absolute top-0 left-0 right-0 h-[2px] ${
-          tag === "Return" ? "bg-gradient-to-r from-cyan-400 to-blue-400" : "bg-gradient-to-r from-amber-300 to-amber-500"
-        }`}
+        className={`absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent ${
+          isReturn ? "via-cyan-400" : "via-amber-400"
+        } to-transparent`}
       />
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.03]"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
-          backgroundSize: "26px 26px",
-        }}
-      />
-      <div className="relative flex items-center justify-between px-6 py-4 flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center overflow-hidden shadow-sm ring-1 ring-black/5 shrink-0">
-            <img src={airlineLogos[flight.airline] || "/airlines/default.png"} alt={flight.airline} className="w-7 h-7 object-contain" />
+
+      <div className="relative z-10 flex items-center justify-between flex-wrap gap-4">
+        {/* Airline & Aircraft Pod */}
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-2xl bg-white flex items-center justify-center overflow-hidden shadow-md ring-1 ring-white/10 shrink-0 group-hover:scale-105 transition-transform">
+            <img src={logo} alt={flight.airline} className="w-7 h-7 object-contain" />
           </div>
           <div>
             <div className="flex items-center gap-2">
               {tag && (
-                <span className={`text-[10px] uppercase tracking-wide font-semibold rounded px-1.5 py-0.5 border
-                  ${tag === "Departure"
-                    ? "text-amber-300 bg-amber-400/10 border-amber-400/20"
-                    : "text-cyan-300 bg-cyan-400/10 border-cyan-400/20"}`}>
+                <span
+                  className={`text-[10px] uppercase tracking-wider font-extrabold rounded-full px-2.5 py-0.5 border ${
+                    isReturn
+                      ? "text-cyan-300 bg-cyan-400/15 border-cyan-400/30"
+                      : "text-amber-300 bg-amber-400/15 border-amber-400/30"
+                  }`}
+                >
                   {tag}
                 </span>
               )}
-              <p className="font-semibold text-[15px]">{flight.airline}</p>
+              <p className="font-display font-bold text-base text-white">{flight.airline}</p>
             </div>
-            <p className="text-xs text-slate-500">{flight.aircraft} · Economy</p>
+            <p className="text-xs text-slate-400 mt-0.5 font-medium">
+              {flight.aircraft} <span className="text-slate-600">•</span> Economy
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
-          <div className="text-right">
+        {/* Schedule & Animated Flight Timeline */}
+        <div className="flex items-center gap-3 sm:gap-6 flex-1 justify-center max-w-md mx-auto">
+          {/* Departure */}
+          <div className="text-right shrink-0">
             <div className="flex items-baseline justify-end gap-1.5">
-              <p className="font-display text-xl font-extrabold tabular-nums">{formatTime(flight.departure_time)}</p>
-              <span className="font-board text-xs text-amber-300/80 font-bold uppercase">{flight.origin}</span>
+              <p className="font-display text-lg sm:text-2xl font-black tabular-nums text-white">
+                {formatTime(flight.departure_time)}
+              </p>
+              <span className="font-display text-xs font-black text-amber-300 uppercase">
+                {flight.origin}
+              </span>
             </div>
-            <p className="text-[11px] text-slate-500">{formatDateLabel(flight.departure_time, travelDate)}</p>
+            <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+              {formatDateLabel(flight.departure_time, travelDate)}
+            </p>
           </div>
-          <div className="flex flex-col items-center w-28">
-            <p className="text-[10px] text-slate-400 mb-1">{flight.duration || "--"}</p>
-            <div className="w-full flex items-center gap-1">
-              <span className="w-1 h-1 rounded-full bg-amber-300 shrink-0" />
-              <div className="flex-1 h-px bg-gradient-to-r from-amber-300/60 via-slate-600/40 to-cyan-300/60" />
-              <span className="w-1 h-1 rounded-full bg-cyan-300 shrink-0" />
+
+          {/* Animated Flight Vector Track */}
+          <div className="flex flex-col items-center flex-1 min-w-[70px] max-w-[130px] px-2">
+            <p className="text-[10px] text-slate-300 mb-1 font-semibold tracking-wide whitespace-nowrap">
+              {flight.duration || "--"}
+            </p>
+            <div className="relative w-full h-[2.5px] bg-white/10 rounded-full flex items-center overflow-visible">
+              <div
+                className={`absolute inset-0 rounded-full bg-gradient-to-r ${
+                  isReturn ? "from-cyan-400/60 to-blue-400/60" : "from-amber-400/60 to-amber-300/60"
+                }`}
+              />
+              <div className="timeline-comet absolute h-[2.5px] w-6 rounded-full bg-gradient-to-r from-transparent via-white to-transparent shadow-[0_0_8px_rgba(255,255,255,0.9)]" />
+              <div className="absolute -left-1 w-2 h-2 rounded-full bg-cyan-400 ring-2 ring-cyan-400/30" />
+              <div className="absolute left-1/2 -translate-x-1/2 -top-2 flex flex-col items-center">
+                <span className="plane-bob text-[10px] text-amber-300 select-none">✈</span>
+              </div>
+              <div className="absolute -right-1 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/30" />
             </div>
-            <p className="text-[10px] text-slate-500 mt-1">{flight.stops ? `${flight.stops} stop` : "Non-stop"}</p>
+            <p className="text-[10px] text-slate-400 mt-1.5 font-medium whitespace-nowrap">
+              {flight.stops ? `${flight.stops} stop` : "Non-stop"}
+            </p>
           </div>
-          <div>
+
+          {/* Arrival */}
+          <div className="text-left shrink-0">
             <div className="flex items-baseline gap-1.5">
-              <p className="font-display text-xl font-extrabold tabular-nums">{formatTime(flight.arrival_time)}</p>
-              <span className="font-board text-xs text-cyan-300/80 font-bold uppercase">{flight.destination}</span>
+              <p className="font-display text-lg sm:text-2xl font-black tabular-nums text-white">
+                {formatTime(flight.arrival_time)}
+              </p>
+              <span className="font-display text-xs font-black text-cyan-300 uppercase">
+                {flight.destination}
+              </span>
             </div>
-            <p className="text-[11px] text-slate-500">{formatDateLabel(flight.arrival_time, travelDate)}</p>
+            <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+              {formatDateLabel(flight.arrival_time, travelDate)}
+            </p>
           </div>
-          <button className="text-xs text-cyan-300 hover:text-cyan-200 transition-colors flex items-center gap-1 shrink-0">
-            <span aria-hidden>✎</span> Edit Flight
-          </button>
         </div>
+
+        {/* Change Flight CTA */}
+        <button
+          type="button"
+          onClick={() => history.back()}
+          className="relative overflow-hidden px-4 py-2 rounded-full border border-white/10 bg-white/[0.04] text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/[0.08] hover:border-amber-400/40 transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+        >
+          <span>✏️</span>
+          <span>Edit Flight</span>
+        </button>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
 const PAX_COLORS = [
-  { ring: "border-cyan-400/30", bg: "bg-cyan-400/15", text: "text-cyan-300" },
-  { ring: "border-violet-400/30", bg: "bg-violet-400/15", text: "text-violet-300" },
-  { ring: "border-rose-400/30", bg: "bg-rose-400/15", text: "text-rose-300" },
-  { ring: "border-emerald-400/30", bg: "bg-emerald-400/15", text: "text-emerald-300" },
+  { ring: "border-cyan-400/40", bg: "bg-cyan-400/15", text: "text-cyan-300", glow: "shadow-[0_0_12px_rgba(34,211,238,0.2)]" },
+  { ring: "border-amber-400/40", bg: "bg-amber-400/15", text: "text-amber-300", glow: "shadow-[0_0_12px_rgba(251,191,36,0.2)]" },
+  { ring: "border-violet-400/40", bg: "bg-violet-400/15", text: "text-violet-300", glow: "shadow-[0_0_12px_rgba(167,139,250,0.2)]" },
+  { ring: "border-emerald-400/40", bg: "bg-emerald-400/15", text: "text-emerald-300", glow: "shadow-[0_0_12px_rgba(52,211,153,0.2)]" },
 ]
 
-// ---------------------------------------------------------------------------
-// SavedPassengerSection — was a plain <Select> dropdown; now a real section
-// of pickable chip-cards (name + DOB, initials avatar), matching "make it
-// like a section with autofill". A saved passenger already used in a
-// DIFFERENT slot shows greyed-out and unpickable here, so the same person
-// can't end up filled into two passenger slots by accident. Includes an
-// explicit "New Passenger" option alongside the saved ones.
-// ---------------------------------------------------------------------------
-
-function SavedPassengerSection({ savedPassengers, usedSavedIds, currentSourceId, onUseSaved, onUseBlank }: {
+function SavedPassengerSection({
+  savedPassengers,
+  usedSavedIds,
+  currentSourceId,
+  onUseSaved,
+  onUseBlank,
+}: {
   savedPassengers: SavedPassenger[]
   usedSavedIds: Set<string>
   currentSourceId?: string
@@ -790,9 +919,15 @@ function SavedPassengerSection({ savedPassengers, usedSavedIds, currentSourceId,
   if (savedPassengers.length === 0) return null
 
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3.5">
-      <p className="text-xs text-slate-400 mb-2.5">Fill instantly from someone you've flown before, or start blank below.</p>
-      <div className="flex flex-wrap gap-2">
+    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 backdrop-blur-md">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-bold text-slate-300 flex items-center gap-2">
+          <span>⚡</span>
+          <span>Quick Autofill from Saved Profiles</span>
+        </p>
+        <span className="text-[11px] text-slate-500 hidden sm:inline">Click a card to populate fields</span>
+      </div>
+      <div className="flex flex-wrap gap-2.5">
         {savedPassengers.map((sp) => {
           const isThisSlot = sp.id === currentSourceId
           const usedElsewhere = usedSavedIds.has(sp.id) && !isThisSlot
@@ -802,85 +937,185 @@ function SavedPassengerSection({ savedPassengers, usedSavedIds, currentSourceId,
               type="button"
               disabled={usedElsewhere}
               onClick={() => onUseSaved(sp)}
-              className={`flex items-center gap-2 pl-2 pr-3 py-2 rounded-full border text-left transition-colors ${
+              className={`group flex items-center gap-2.5 pl-2.5 pr-4 py-2 rounded-2xl border text-left transition-all cursor-pointer ${
                 isThisSlot
-                  ? "border-amber-300/60 bg-amber-400/[0.08]"
+                  ? "border-amber-400/70 bg-amber-400/10 text-amber-200 shadow-[0_0_15px_rgba(251,191,36,0.15)] ring-1 ring-amber-400/30"
                   : usedElsewhere
-                  ? "border-white/[0.06] bg-white/[0.02] text-slate-600 cursor-not-allowed"
-                  : "border-white/[0.1] bg-white/[0.03] hover:border-amber-300/50 hover:bg-amber-400/[0.06] text-slate-200"
+                  ? "border-white/[0.05] bg-white/[0.01] text-slate-600 cursor-not-allowed opacity-60"
+                  : "border-white/[0.1] bg-white/[0.03] hover:border-amber-400/40 hover:bg-white/[0.06] text-slate-200"
               }`}
             >
-              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                usedElsewhere ? "bg-white/[0.06] text-slate-600" : "bg-amber-400/15 text-amber-300"
-              }`}>
-                {(sp.first_name?.[0] ?? "?").toUpperCase()}{(sp.last_name?.[0] ?? "").toUpperCase()}
+              <span
+                className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black shrink-0 transition-transform ${
+                  isThisSlot
+                    ? "bg-amber-400/25 text-amber-300 ring-1 ring-amber-400/40"
+                    : usedElsewhere
+                    ? "bg-white/[0.05] text-slate-600"
+                    : "bg-white/[0.08] text-slate-300 group-hover:scale-105"
+                }`}
+              >
+                {(sp.first_name?.[0] ?? "?").toUpperCase()}
+                {(sp.last_name?.[0] ?? "").toUpperCase()}
               </span>
               <span className="text-xs">
-                <span className="block font-medium leading-tight">
-                  {sp.title ? `${sp.title} ` : ""}{sp.first_name} {sp.last_name}
+                <span className="block font-bold leading-tight">
+                  {sp.title ? `${sp.title} ` : ""}
+                  {sp.first_name} {sp.last_name}
                 </span>
-                {sp.date_of_birth && <span className="block text-[10px] text-slate-500 leading-tight">DOB {sp.date_of_birth}</span>}
+                {sp.date_of_birth && (
+                  <span className="block text-[10px] text-slate-400 leading-tight mt-0.5 font-medium">
+                    DOB {sp.date_of_birth}
+                  </span>
+                )}
               </span>
-              {usedElsewhere && <span className="text-[9px] uppercase tracking-wide ml-1 shrink-0">Added</span>}
+              {usedElsewhere && (
+                <span className="text-[9px] uppercase font-bold tracking-wider ml-1 shrink-0 text-slate-500 bg-white/[0.04] px-1.5 py-0.5 rounded">
+                  In Use
+                </span>
+              )}
             </button>
           )
         })}
         <button
           type="button"
           onClick={onUseBlank}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-full border border-dashed transition-colors text-xs font-medium ${
-            !currentSourceId ? "border-cyan-400/60 bg-cyan-400/[0.08] text-cyan-300" : "border-cyan-400/30 text-cyan-300 hover:bg-cyan-400/[0.06]"
+          className={`flex items-center gap-2 px-4 py-2 rounded-2xl border border-dashed text-xs font-bold transition-all cursor-pointer ${
+            !currentSourceId
+              ? "border-cyan-400/70 bg-cyan-400/10 text-cyan-200 ring-1 ring-cyan-400/30 shadow-[0_0_12px_rgba(34,211,238,0.15)]"
+              : "border-cyan-400/30 text-cyan-300 hover:bg-cyan-400/[0.06] hover:border-cyan-400/50"
           }`}
         >
-          <span aria-hidden>+</span> New Passenger
+          <span className="w-4 h-4 rounded-full bg-cyan-400/20 flex items-center justify-center text-[11px] leading-none">
+            +
+          </span>
+          <span>New / Blank</span>
         </button>
       </div>
     </div>
   )
 }
 
-function PassengerCard({ index, passenger, isExpanded, errors, canRemove, entranceDelay, mounted, savedPassengers, usedSavedIds, onToggle, onCollapseWithValidation, onChange, onUseSaved, onUseBlank, onRemove, onSetPrimaryContact }: {
-  index: number; passenger: Passenger; isExpanded: boolean; errors: FieldErrors; canRemove: boolean
-  entranceDelay: number; mounted: boolean; savedPassengers: SavedPassenger[]; usedSavedIds: Set<string>
-  onToggle: () => void; onCollapseWithValidation: () => void
-  onChange: (patch: Partial<Passenger>) => void; onUseSaved: (sp: SavedPassenger) => void; onUseBlank: () => void
-  onRemove: () => void; onSetPrimaryContact: () => void
+function PassengerCard({
+  index,
+  passenger,
+  isExpanded,
+  errors,
+  canRemove,
+  entranceDelay,
+  mounted,
+  savedPassengers,
+  usedSavedIds,
+  onToggle,
+  onCollapseWithValidation,
+  onChange,
+  onUseSaved,
+  onUseBlank,
+  onRemove,
+  onSetPrimaryContact,
+}: {
+  index: number
+  passenger: Passenger
+  isExpanded: boolean
+  errors: FieldErrors
+  canRemove: boolean
+  entranceDelay: number
+  mounted: boolean
+  savedPassengers: SavedPassenger[]
+  usedSavedIds: Set<string>
+  onToggle: () => void
+  onCollapseWithValidation: () => void
+  onChange: (patch: Partial<Passenger>) => void
+  onUseSaved: (sp: SavedPassenger) => void
+  onUseBlank: () => void
+  onRemove: () => void
+  onSetPrimaryContact: () => void
 }) {
   const isComplete = Object.keys(errors).length === 0 && passenger.firstName && passenger.lastName
-  const label = passenger.type === "adult" ? `Adult ${index + 1}` : passenger.type === "child" ? `Child ${index + 1}${passenger.age ? ` (Age ${passenger.age})` : ""}` : `Infant ${index + 1}`
+  const label =
+    passenger.type === "adult"
+      ? `Adult ${index + 1}`
+      : passenger.type === "child"
+      ? `Child ${index + 1}${passenger.age ? ` (Age ${passenger.age})` : ""}`
+      : `Infant ${index + 1}`
   const paxColor = PAX_COLORS[index % PAX_COLORS.length]
 
   return (
     <div
-      className="relative bg-gradient-to-br from-[#0D1A2C] via-[#0B1729] to-[#0A1424] border border-white/[0.08] rounded-2xl overflow-hidden transition-all duration-500 ease-out card-enter ticket-edge"
-      style={{ transitionDelay: mounted ? `${entranceDelay}ms` : "0ms", opacity: mounted ? 1 : 0, transform: mounted ? "translateY(0) scale(1)" : "translateY(16px) scale(0.97)" }}
+      className="relative bg-gradient-to-br from-[#0C1729]/95 via-[#0F1E33]/98 to-[#0A1424]/95 border border-white/[0.12] rounded-3xl overflow-hidden transition-all duration-500 ease-out card-enter ticket-edge shadow-[0_15px_40px_rgba(0,0,0,0.35)] backdrop-blur-2xl"
+      style={{
+        transitionDelay: mounted ? `${entranceDelay}ms` : "0ms",
+        opacity: mounted ? 1 : 0,
+        transform: mounted ? "translateY(0) scale(1)" : "translateY(16px) scale(0.97)",
+      }}
     >
-      <button type="button" onClick={isExpanded ? onCollapseWithValidation : onToggle}
-        className="w-full flex items-center justify-between px-6 py-4 text-left">
-        <div className="flex items-center gap-3">
-          <span className={`w-7 h-7 rounded-full border flex items-center justify-center text-xs font-semibold ${paxColor.bg} ${paxColor.ring} ${paxColor.text}`}>{index + 1}</span>
-          <span className="font-medium">{label}</span>
+      {/* Top indicator hairline */}
+      <div
+        className={`absolute top-0 left-0 right-0 h-[2px] transition-all duration-500 bg-gradient-to-r ${
+          isComplete
+            ? "from-emerald-400 via-emerald-300 to-transparent"
+            : isExpanded
+            ? "from-amber-400 via-amber-300 to-transparent"
+            : "from-cyan-400/40 via-blue-400/40 to-transparent"
+        }`}
+      />
+
+      <button
+        type="button"
+        onClick={isExpanded ? onCollapseWithValidation : onToggle}
+        className="w-full flex items-center justify-between px-6 py-4 sm:py-5 text-left cursor-pointer group hover:bg-white/[0.02] transition-colors"
+      >
+        <div className="flex items-center gap-3.5 flex-wrap">
+          <span
+            className={`w-8 h-8 rounded-xl border flex items-center justify-center text-xs font-display font-extrabold ${paxColor.bg} ${paxColor.ring} ${paxColor.text} ${paxColor.glow}`}
+          >
+            {index + 1}
+          </span>
+          <span className="font-display font-bold text-base text-white tracking-tight">
+            {passenger.firstName ? `${passenger.title ? `${passenger.title} ` : ""}${passenger.firstName} ${passenger.lastName}` : label}
+          </span>
           {passenger.isPrimaryContact && (
-            <span className="text-[10px] uppercase tracking-wide text-amber-300 bg-amber-400/10 border border-amber-400/20 rounded px-1.5 py-0.5">Primary Contact</span>
+            <span className="inline-flex items-center gap-1 text-[10px] uppercase font-extrabold tracking-wider text-amber-300 bg-amber-400/10 border border-amber-400/30 rounded-full px-2.5 py-0.5 shadow-[0_0_10px_rgba(251,191,36,0.15)]">
+              <span>★</span> Primary Contact
+            </span>
           )}
-          {isComplete && !isExpanded && <span className="check-pop text-emerald-400 text-sm" aria-hidden>✓</span>}
+          {isComplete && !isExpanded && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300 bg-emerald-400/10 border border-emerald-400/25 rounded-full px-2.5 py-0.5 check-pop">
+              <span>✓</span> Complete
+            </span>
+          )}
         </div>
+
         <div className="flex items-center gap-4">
           {canRemove && (
-            <span role="button" onClick={(e) => { e.stopPropagation(); onRemove() }}
-              className="text-xs text-rose-400 hover:text-rose-300 transition-colors flex items-center gap-1">
+            <span
+              role="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onRemove()
+              }}
+              className="text-xs font-semibold text-rose-400 hover:text-rose-300 transition-colors flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-rose-400/10 cursor-pointer"
+            >
               <span aria-hidden>🗑</span> Remove
             </span>
           )}
-          {!isExpanded && <span className="text-xs text-cyan-300 hover:text-cyan-200 transition-colors">Edit</span>}
-          <span className="text-slate-400 transition-transform duration-300 ease-out" style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }} aria-hidden>▾</span>
+          {!isExpanded && (
+            <span className="text-xs font-bold text-cyan-300 group-hover:text-cyan-200 transition-colors px-2.5 py-1 rounded-full bg-cyan-400/10 border border-cyan-400/20">
+              Edit
+            </span>
+          )}
+          <span
+            className="text-slate-400 group-hover:text-white transition-transform duration-300 ease-out text-sm"
+            style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
+            aria-hidden
+          >
+            ▾
+          </span>
         </div>
       </button>
 
       <div className="grid transition-all duration-400 ease-out" style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr" }}>
         <div className="overflow-hidden">
-          <div className={`px-6 pb-6 space-y-5 transition-opacity duration-300 ${isExpanded ? "opacity-100 delay-100" : "opacity-0"}`}>
-
+          <div className={`px-6 pb-6 pt-2 space-y-5 transition-opacity duration-300 ${isExpanded ? "opacity-100 delay-100" : "opacity-0"}`}>
             <SavedPassengerSection
               savedPassengers={savedPassengers}
               usedSavedIds={usedSavedIds}
@@ -891,46 +1126,111 @@ function PassengerCard({ index, passenger, isExpanded, errors, canRemove, entran
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <Field label="Title">
-                <Select value={passenger.title} error={!!errors.title} onChange={(v) => onChange({ title: v })} options={["Mr", "Mrs", "Ms", "Dr"]} placeholder="Select" />
+                <Select
+                  value={passenger.title}
+                  error={!!errors.title}
+                  onChange={(v) => onChange({ title: v })}
+                  options={["Mr", "Mrs", "Ms", "Dr"]}
+                  placeholder="Select"
+                />
               </Field>
               <Field label="First Name" className="col-span-1">
-                <TextInput value={passenger.firstName} error={!!errors.firstName} onChange={(v) => onChange({ firstName: v })} placeholder="Arjun" />
+                <TextInput
+                  value={passenger.firstName}
+                  error={!!errors.firstName}
+                  onChange={(v) => onChange({ firstName: v })}
+                  placeholder="Arjun"
+                />
               </Field>
               <Field label="Middle Name (Optional)">
-                <TextInput value={passenger.middleName} onChange={(v) => onChange({ middleName: v })} placeholder="Kumar" />
+                <TextInput
+                  value={passenger.middleName}
+                  onChange={(v) => onChange({ middleName: v })}
+                  placeholder="Kumar"
+                />
               </Field>
               <Field label="Last Name">
-                <TextInput value={passenger.lastName} error={!!errors.lastName} onChange={(v) => onChange({ lastName: v })} placeholder="Sharma" />
+                <TextInput
+                  value={passenger.lastName}
+                  error={!!errors.lastName}
+                  onChange={(v) => onChange({ lastName: v })}
+                  placeholder="Sharma"
+                />
               </Field>
             </div>
+
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <Field label="Date of Birth">
-                <TextInput type="date" value={passenger.dob} error={!!errors.dob} onChange={(v) => onChange({ dob: v })} />
+                <TextInput
+                  type="date"
+                  value={passenger.dob}
+                  error={!!errors.dob}
+                  onChange={(v) => onChange({ dob: v })}
+                />
               </Field>
               <Field label="Gender">
-                <Select value={passenger.gender} error={!!errors.gender} onChange={(v) => onChange({ gender: v })} options={["Male", "Female", "Other"]} placeholder="Select" />
+                <Select
+                  value={passenger.gender}
+                  error={!!errors.gender}
+                  onChange={(v) => onChange({ gender: v })}
+                  options={["Male", "Female", "Other"]}
+                  placeholder="Select"
+                />
               </Field>
               <Field label="Nationality">
-                <Select value={passenger.nationality} error={!!errors.nationality} onChange={(v) => onChange({ nationality: v })} options={["India", "United States", "United Kingdom", "UAE", "Singapore"]} placeholder="Select" />
+                <Select
+                  value={passenger.nationality}
+                  error={!!errors.nationality}
+                  onChange={(v) => onChange({ nationality: v })}
+                  options={["India", "United States", "United Kingdom", "UAE", "Singapore"]}
+                  placeholder="Select"
+                />
               </Field>
               <Field label="Frequent Flyer (Optional)">
-                <TextInput value={passenger.frequentFlyer} onChange={(v) => onChange({ frequentFlyer: v })} placeholder="AI12345678" />
+                <TextInput
+                  value={passenger.frequentFlyer}
+                  onChange={(v) => onChange({ frequentFlyer: v })}
+                  placeholder="AI12345678"
+                />
               </Field>
             </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Email">
-                <TextInput type="email" value={passenger.email} error={!!errors.email} errorText={errors.email} onChange={(v) => onChange({ email: v })} placeholder="arjun.sharma@email.com" />
+              <Field label="Email Address" helper="For ticket & flight updates">
+                <TextInput
+                  type="email"
+                  value={passenger.email}
+                  error={!!errors.email}
+                  errorText={errors.email}
+                  onChange={(v) => onChange({ email: v })}
+                  placeholder="arjun.sharma@email.com"
+                />
               </Field>
-              <Field label="Mobile Number">
-                <PhoneInput countryCode={passenger.countryCode} mobile={passenger.mobile} error={!!errors.mobile} errorText={errors.mobile} onCountryChange={(v) => onChange({ countryCode: v })} onMobileChange={(v) => onChange({ mobile: v })} />
+              <Field label="Mobile Number" helper="For instant SMS boarding alerts">
+                <PhoneInput
+                  countryCode={passenger.countryCode}
+                  mobile={passenger.mobile}
+                  error={!!errors.mobile}
+                  errorText={errors.mobile}
+                  onCountryChange={(v) => onChange({ countryCode: v })}
+                  onMobileChange={(v) => onChange({ mobile: v })}
+                />
               </Field>
             </div>
-            <label className="flex items-center gap-2.5 cursor-pointer select-none group">
-              <Checkbox checked={passenger.isPrimaryContact} onChange={onSetPrimaryContact} />
-              <span className={`text-sm transition-colors ${passenger.isPrimaryContact ? "text-cyan-300" : "text-slate-400 group-hover:text-slate-300"}`}>
-                Use this passenger as primary contact for this booking
-              </span>
-            </label>
+
+            <div className="pt-2 border-t border-white/[0.06]">
+              <label className="flex items-center gap-3 cursor-pointer select-none group bg-white/[0.02] border border-white/[0.06] rounded-2xl p-3.5 hover:bg-white/[0.04] transition-colors">
+                <Checkbox checked={passenger.isPrimaryContact} onChange={onSetPrimaryContact} />
+                <div className="flex-1">
+                  <p className={`text-xs font-bold transition-colors ${passenger.isPrimaryContact ? "text-cyan-300" : "text-slate-200 group-hover:text-white"}`}>
+                    Designate as Primary Contact
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    All e-tickets, terminal gates, and flight status notifications will be sent to this traveller
+                  </p>
+                </div>
+              </label>
+            </div>
           </div>
         </div>
       </div>
@@ -938,17 +1238,32 @@ function PassengerCard({ index, passenger, isExpanded, errors, canRemove, entran
   )
 }
 
-function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
+function Field({ label, helper, children, className }: { label: string; helper?: string; children: React.ReactNode; className?: string }) {
   return (
     <div className={className}>
-      <label className="block text-xs text-slate-500 mb-1.5">{label}</label>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="block text-xs font-bold uppercase tracking-wider text-slate-300">{label}</label>
+        {helper && <span className="text-[10px] text-slate-500 font-medium hidden sm:inline">{helper}</span>}
+      </div>
       {children}
     </div>
   )
 }
 
-function TextInput({ value, onChange, type = "text", placeholder, error, errorText }: {
-  value: string; onChange: (v: string) => void; type?: string; placeholder?: string; error?: boolean; errorText?: string
+function TextInput({
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+  error,
+  errorText,
+}: {
+  value: string
+  onChange: (v: string) => void
+  type?: string
+  placeholder?: string
+  error?: boolean
+  errorText?: string
 }) {
   const [shake, setShake] = useState(false)
   const prevError = useRef(error)
@@ -964,29 +1279,44 @@ function TextInput({ value, onChange, type = "text", placeholder, error, errorTe
 
   return (
     <div>
-      <input type={type} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)}
-        className={`field-input w-full rounded-lg bg-white/[0.03] px-3 py-2.5 text-sm text-white outline-none transition-all duration-200 border
-        ${error ? "border-rose-400/50" : "border-white/[0.08] focus:border-amber-300/60"}
-        ${shake ? "field-shake" : ""}`} />
-      {error && errorText && <p className="text-[11px] text-rose-400 mt-1">{errorText}</p>}
+      <input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className={`field-input w-full rounded-xl bg-[#08111F]/90 px-3.5 py-2.5 text-sm font-medium text-white placeholder:text-slate-500 outline-none transition-all duration-200 border shadow-[inset_0_1px_3px_rgba(0,0,0,0.4)]
+        ${error ? "border-rose-400/60 text-rose-100" : "border-white/[0.10] focus:border-amber-400/70"}
+        ${shake ? "field-shake" : ""}`}
+      />
+      {error && errorText && <p className="text-[11px] font-semibold text-rose-400 mt-1">{errorText}</p>}
     </div>
   )
 }
 
-function Select({ value, onChange, options, placeholder, error }: {
-  value: string; onChange: (v: string) => void; options: string[]; placeholder?: string; error?: boolean
+function Select({
+  value,
+  onChange,
+  options,
+  placeholder,
+  error,
+}: {
+  value: string
+  onChange: (v: string) => void
+  options: string[]
+  placeholder?: string
+  error?: boolean
 }) {
   return (
     <UiSelect value={value || undefined} onValueChange={onChange}>
       <SelectTrigger
-        className={`field-input w-full rounded-lg bg-white/[0.03] px-3 py-2.5 text-sm text-white border h-auto
-        ${error ? "border-rose-400/50" : "border-white/[0.08] data-[state=open]:border-amber-300/60"}`}
+        className={`field-input w-full rounded-xl bg-[#08111F]/90 px-3.5 py-2.5 text-sm font-medium text-white border shadow-[inset_0_1px_3px_rgba(0,0,0,0.4)] h-auto
+        ${error ? "border-rose-400/60" : "border-white/[0.10] data-[state=open]:border-amber-400/70"}`}
       >
         <SelectValue placeholder={placeholder || "Select"} />
       </SelectTrigger>
-      <SelectContent className="bg-[#0D1A2C] border-white/10 text-white">
+      <SelectContent className="bg-[#0B1526] border-white/10 text-white rounded-xl shadow-2xl backdrop-blur-xl p-1.5">
         {options.map((opt) => (
-          <SelectItem key={opt} value={opt} className="focus:bg-amber-400/10 focus:text-amber-200">
+          <SelectItem key={opt} value={opt} className="rounded-lg py-2 px-3 text-sm focus:bg-amber-400/15 focus:text-amber-200 cursor-pointer">
             {opt}
           </SelectItem>
         ))}
@@ -995,8 +1325,20 @@ function Select({ value, onChange, options, placeholder, error }: {
   )
 }
 
-function PhoneInput({ countryCode, mobile, onCountryChange, onMobileChange, error, errorText }: {
-  countryCode: string; mobile: string; onCountryChange: (v: string) => void; onMobileChange: (v: string) => void; error?: boolean; errorText?: string
+function PhoneInput({
+  countryCode,
+  mobile,
+  onCountryChange,
+  onMobileChange,
+  error,
+  errorText,
+}: {
+  countryCode: string
+  mobile: string
+  onCountryChange: (v: string) => void
+  onMobileChange: (v: string) => void
+  error?: boolean
+  errorText?: string
 }) {
   const countries = [
     { code: "+91", flag: "🇮🇳" },
@@ -1009,32 +1351,40 @@ function PhoneInput({ countryCode, mobile, onCountryChange, onMobileChange, erro
     <div>
       <div className="flex gap-2">
         <UiSelect value={countryCode} onValueChange={onCountryChange}>
-          <SelectTrigger className="field-input rounded-lg bg-white/[0.03] px-2.5 py-2.5 text-sm text-white border border-white/[0.08] data-[state=open]:border-amber-300/60 h-auto w-[92px] shrink-0">
+          <SelectTrigger className="field-input rounded-xl bg-[#08111F]/90 px-3 py-2.5 text-sm font-medium text-white border border-white/[0.10] shadow-[inset_0_1px_3px_rgba(0,0,0,0.4)] data-[state=open]:border-amber-400/70 h-auto w-[96px] shrink-0">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="bg-[#0D1A2C] border-white/10 text-white min-w-[110px]">
+          <SelectContent className="bg-[#0B1526] border-white/10 text-white min-w-[120px] rounded-xl shadow-2xl backdrop-blur-xl p-1.5">
             {countries.map((c) => (
-              <SelectItem key={c.code} value={c.code} className="focus:bg-amber-400/10 focus:text-amber-200">
+              <SelectItem key={c.code} value={c.code} className="rounded-lg py-2 px-3 text-sm focus:bg-amber-400/15 focus:text-amber-200 cursor-pointer">
                 {c.flag} {c.code}
               </SelectItem>
             ))}
           </SelectContent>
         </UiSelect>
-        <input type="tel" value={mobile} placeholder="98765 43210" onChange={(e) => onMobileChange(e.target.value.replace(/[^\d]/g, ""))}
-          className={`field-input flex-1 rounded-lg bg-white/[0.03] px-3 py-2.5 text-sm text-white outline-none transition-all duration-200 border tracking-wide
-          ${error ? "border-rose-400/50" : "border-white/[0.08] focus:border-amber-300/60"}`} />
+        <input
+          type="tel"
+          value={mobile}
+          placeholder="98765 43210"
+          onChange={(e) => onMobileChange(e.target.value.replace(/[^\d]/g, ""))}
+          className={`field-input flex-1 rounded-xl bg-[#08111F]/90 px-3.5 py-2.5 text-sm font-medium text-white placeholder:text-slate-500 outline-none transition-all duration-200 border shadow-[inset_0_1px_3px_rgba(0,0,0,0.4)] tracking-wide
+          ${error ? "border-rose-400/60 text-rose-100" : "border-white/[0.10] focus:border-amber-400/70"}`}
+        />
       </div>
-      {error && errorText && <p className="text-[11px] text-rose-400 mt-1">{errorText}</p>}
+      {error && errorText && <p className="text-[11px] font-semibold text-rose-400 mt-1">{errorText}</p>}
     </div>
   )
 }
 
 function Checkbox({ checked, onChange }: { checked: boolean; onChange: () => void }) {
   return (
-    <button type="button" onClick={onChange}
-      className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all duration-200 shrink-0
-      ${checked ? "bg-cyan-400 border-cyan-400" : "bg-white/[0.03] border-white/20"}`}>
-      {checked && <span className="tick-pop text-[#060B14] text-[11px] leading-none">✓</span>}
+    <button
+      type="button"
+      onClick={onChange}
+      className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all duration-200 shrink-0 cursor-pointer
+      ${checked ? "bg-cyan-400 border-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.4)]" : "bg-white/[0.04] border-white/20 hover:border-white/40"}`}
+    >
+      {checked && <span className="tick-pop text-[#060B14] text-[11px] font-black leading-none">✓</span>}
     </button>
   )
 }
@@ -1049,11 +1399,15 @@ function TripSummary({ departFlight, returnFlight, passengerCount, baseFare, tax
 
   return (
     <div className="sticky top-24 space-y-4">
-      <div className="relative bg-gradient-to-b from-[#0D1A2C] to-[#0A1424] border border-white/[0.08] rounded-2xl overflow-hidden ticket-edge">
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-blue-400 via-amber-400 to-amber-300" />
-        <div className="flex items-center justify-between px-6 py-5">
-          <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Trip Summary</p>
-          <span className="text-xs text-cyan-300">{passengerCount} Passenger{passengerCount > 1 ? "s" : ""}</span>
+      <div className="relative bg-gradient-to-b from-[#0C1729]/95 via-[#0F1E33]/98 to-[#0A1424]/95 border border-white/[0.12] rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.55)] backdrop-blur-2xl ticket-edge">
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-cyan-400 via-amber-400 to-amber-300" />
+        <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.06]">
+          <p className="text-xs uppercase tracking-[0.18em] font-extrabold text-slate-300 flex items-center gap-2">
+            <span>✈️</span> Trip Summary
+          </p>
+          <span className="text-xs font-bold text-cyan-300 bg-cyan-400/10 border border-cyan-400/20 rounded-full px-2.5 py-1">
+            {passengerCount} Passenger{passengerCount > 1 ? "s" : ""}
+          </span>
         </div>
 
         <TripSummaryLeg flight={departFlight} tag={isRoundTrip ? "Departure" : undefined} />
@@ -1061,7 +1415,7 @@ function TripSummary({ departFlight, returnFlight, passengerCount, baseFare, tax
         {returnFlight && (
           <>
             <div className="relative px-6">
-              <div className="border-t border-dashed border-white/[0.14]" />
+              <div className="border-t border-dashed border-white/[0.12]" />
               <span className="absolute -left-3 -top-3 w-6 h-6 rounded-full bg-[#060B14]" />
               <span className="absolute -right-3 -top-3 w-6 h-6 rounded-full bg-[#060B14]" />
             </div>
@@ -1070,7 +1424,7 @@ function TripSummary({ departFlight, returnFlight, passengerCount, baseFare, tax
         )}
 
         <div className="relative px-6">
-          <div className="border-t border-dashed border-white/[0.14]" />
+          <div className="border-t border-dashed border-white/[0.12]" />
           <span className="absolute -left-3 -top-3 w-6 h-6 rounded-full bg-[#060B14]" />
           <span className="absolute -right-3 -top-3 w-6 h-6 rounded-full bg-[#060B14]" />
         </div>
@@ -1078,53 +1432,56 @@ function TripSummary({ departFlight, returnFlight, passengerCount, baseFare, tax
         <div className="px-6 py-5 space-y-2.5 text-sm">
           <div className="flex justify-between">
             <span className="text-slate-400">{passengerCount} x Adult{isRoundTrip ? " (Round Trip)" : ""}</span>
-            <span className="text-slate-200">₹{baseFare.toLocaleString("en-IN")}</span>
+            <span className="text-slate-200 font-semibold">₹{baseFare.toLocaleString("en-IN")}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-slate-400">Taxes & Fees</span>
-            <span className="text-slate-200">₹{taxesAndFees.toLocaleString("en-IN")}</span>
+            <span className="text-slate-400">Taxes & Airport Fees</span>
+            <span className="text-slate-200 font-semibold">₹{taxesAndFees.toLocaleString("en-IN")}</span>
           </div>
         </div>
 
-        <div className="px-6 pb-1">
-          <div className="border border-blue-400/25 bg-blue-500/[0.07] rounded-xl px-4 py-3.5 flex items-end justify-between mb-4">
-            <span className="text-sm text-slate-300 font-medium">Total Price</span>
-            <span className="font-board text-[26px] leading-none font-extrabold tabular-nums gold-glow-text">
+        <div className="px-6 pb-2">
+          <div className="border border-amber-400/30 bg-amber-400/[0.08] rounded-2xl px-5 py-4 flex items-end justify-between mb-4 shadow-[0_0_20px_rgba(251,191,36,0.12)]">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Total Price</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">All taxes & fees included</p>
+            </div>
+            <span className="font-display text-3xl font-black text-amber-300 tabular-nums leading-none">
               ₹{displayedTotal.toLocaleString("en-IN")}
             </span>
           </div>
         </div>
 
-        <div className="px-6 space-y-2.5 mb-2">
-          <div className={`rounded-xl border px-3.5 py-3 flex items-start gap-3 bg-emerald-400/[0.08] border-emerald-400/20 ${pulseSavings ? "savings-pulse" : ""}`}>
-            <span className="text-base mt-0.5" aria-hidden>✓</span>
+        <div className="px-6 space-y-2.5 mb-3">
+          <div className={`rounded-2xl border px-4 py-3 flex items-start gap-3 bg-emerald-400/[0.08] border-emerald-400/20 ${pulseSavings ? "savings-pulse" : ""}`}>
+            <span className="text-base text-emerald-400 mt-0.5" aria-hidden>✓</span>
             <div>
-              <p className="text-[13px] font-medium text-emerald-300">You're getting a good fare</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">Great choice — one of our best fares</p>
+              <p className="text-[13px] font-bold text-emerald-300">You're getting a good fare</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Great choice — one of our guaranteed best fares</p>
             </div>
           </div>
-          <div className="rounded-xl border px-3.5 py-3 flex items-start gap-3 bg-violet-400/[0.06] border-violet-400/15 relative overflow-hidden shimmer-card">
+          <div className="rounded-2xl border px-4 py-3 flex items-start gap-3 bg-violet-400/[0.06] border-violet-400/15 relative overflow-hidden shimmer-card">
             <span className="text-base mt-0.5" aria-hidden>✨</span>
             <div className="flex-1">
-              <p className="text-[13px] font-medium text-violet-300">Unlock AI Deals</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">Book now and save up to $120 more</p>
+              <p className="text-[13px] font-bold text-violet-300">Unlock AI Deals</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Book now and unlock ₹1,200 exclusive savings</p>
             </div>
             <span className="text-violet-300 self-center">→</span>
           </div>
         </div>
 
-        <div className="px-6 pb-6 pt-2">
+        <div className="px-6 pb-6 pt-1">
           <button onClick={onContinue} disabled={isSaving}
-            className={`continue-btn w-full px-6 py-3.5 rounded-full font-semibold pill-cta transition-all flex items-center justify-center gap-2
+            className={`continue-btn w-full px-6 py-4 rounded-full font-bold text-sm tracking-wide pill-cta transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_10px_30px_rgba(251,191,36,0.3)]
             ${!canContinue ? "opacity-90" : ""} ${isSaving ? "opacity-70 cursor-not-allowed" : ""}`}>
             {isSaving ? (
-              <><span className="w-4 h-4 border-2 border-[#060B14]/30 border-t-[#060B14] rounded-full spin-loader" />Saving your details…</>
+              <><span className="w-4 h-4 border-2 border-[#060B14]/30 border-t-[#060B14] rounded-full spin-loader" />Saving details…</>
             ) : (
               <>Continue to Seat Selection<span className="continue-arrow" aria-hidden>→</span></>
             )}
           </button>
           {saveError && <p className="text-[11px] text-rose-400 text-center mt-3">{saveError}</p>}
-          <p className="text-[11px] text-slate-500 text-center mt-3">Next: choose seats for all passengers</p>
+          <p className="text-[11px] text-slate-500 text-center mt-2.5">Next: choose seats for all passengers</p>
         </div>
       </div>
       <NavBotTip />
@@ -1133,45 +1490,65 @@ function TripSummary({ departFlight, returnFlight, passengerCount, baseFare, tax
 }
 
 function TripSummaryLeg({ flight, tag }: { flight: StoredFlight; tag?: "Departure" | "Return" }) {
+  const isReturn = tag === "Return"
+
   return (
-    <>
-      <div className="px-6 pb-3 flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-md bg-white flex items-center justify-center overflow-hidden">
+    <div className="px-6 py-4">
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center overflow-hidden shadow-sm ring-1 ring-white/10 shrink-0">
             <img src={airlineLogos[flight.airline] || "/airlines/default.png"} alt={flight.airline} className="w-5 h-5 object-contain" />
           </div>
-          <p className="text-sm font-medium">{flight.airline}</p>
+          <p className="text-sm font-bold text-white">{flight.airline}</p>
           {tag && (
-            <span className={`text-[10px] uppercase tracking-wide font-semibold rounded px-1.5 py-0.5 border
-              ${tag === "Departure"
-                ? "text-amber-300 bg-amber-400/10 border-amber-400/20"
-                : "text-cyan-300 bg-cyan-400/10 border-cyan-400/20"}`}>
+            <span
+              className={`text-[9.5px] uppercase tracking-wider font-extrabold rounded-full px-2 py-0.5 border ${
+                isReturn
+                  ? "text-cyan-300 bg-cyan-400/15 border-cyan-400/30"
+                  : "text-amber-300 bg-amber-400/15 border-amber-400/30"
+              }`}
+            >
               {tag}
             </span>
           )}
         </div>
-        <span className="text-[11px] text-cyan-300 bg-cyan-400/10 border border-cyan-400/20 rounded px-2 py-0.5">Economy</span>
+        <span className="text-[10px] font-semibold text-cyan-300 bg-cyan-400/10 border border-cyan-400/20 rounded-full px-2 py-0.5">
+          Economy
+        </span>
       </div>
 
-      <div className="px-6 pb-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="font-display text-lg font-bold tabular-nums">{formatTime(flight.departure_time)}</p>
-            <p className="text-[11px] text-slate-500">{flight.origin}</p>
-          </div>
-          <div className="flex flex-col items-center flex-1 px-3">
-            <p className="text-[10px] text-slate-400">{flight.duration || "--"}</p>
-            <div className="w-full h-px bg-gradient-to-r from-amber-300/50 to-cyan-300/50 my-1" />
-            <p className="text-[10px] text-slate-500">{flight.stops ? `${flight.stops} stop` : "Non-stop"}</p>
-          </div>
-          <div className="text-right">
-            <p className="font-display text-lg font-bold tabular-nums">{formatTime(flight.arrival_time)}</p>
-            <p className="text-[11px] text-slate-500">{flight.destination}</p>
-          </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="font-display text-lg font-black text-white tabular-nums leading-none">
+            {formatTime(flight.departure_time)}
+          </p>
+          <p className="font-display text-xs font-black text-amber-300 uppercase mt-1">{flight.origin}</p>
         </div>
-        <p className="text-[11px] text-slate-500 mt-2">{formatDateLabel(flight.departure_time, flight.travel_date)}</p>
+
+        <div className="flex flex-col items-center flex-1 px-3">
+          <p className="text-[10px] text-slate-400 mb-1 font-medium">{flight.duration || "--"}</p>
+          <div className="relative w-full h-[2px] bg-white/10 rounded-full flex items-center overflow-visible">
+            <div
+              className={`absolute inset-0 rounded-full bg-gradient-to-r ${
+                isReturn ? "from-cyan-400/60 to-blue-400/60" : "from-amber-400/60 to-amber-300/60"
+              }`}
+            />
+            <div className="timeline-comet absolute h-[2px] w-4 rounded-full bg-white shadow-[0_0_6px_rgba(255,255,255,0.8)]" />
+          </div>
+          <p className="text-[10px] text-slate-500 mt-1 font-medium">{flight.stops ? `${flight.stops} stop` : "Non-stop"}</p>
+        </div>
+
+        <div className="text-right">
+          <p className="font-display text-lg font-black text-white tabular-nums leading-none">
+            {formatTime(flight.arrival_time)}
+          </p>
+          <p className="font-display text-xs font-black text-cyan-300 uppercase mt-1">{flight.destination}</p>
+        </div>
       </div>
-    </>
+      <p className="text-[11px] text-slate-400 font-medium mt-2">
+        {formatDateLabel(flight.departure_time, flight.travel_date)}
+      </p>
+    </div>
   )
 }
 
@@ -1243,7 +1620,7 @@ function PageStyles() {
       .tick-pop { animation: tickPop 320ms cubic-bezier(0.34,1.56,0.64,1); }
       .check-pop { animation: tickPop 320ms cubic-bezier(0.34,1.56,0.64,1); display: inline-block; }
       .field-input:focus,
-      .field-input[data-state="open"] { transform: scale(1.01); box-shadow: 0 0 0 3px rgba(251,191,36,0.08); }
+      .field-input[data-state="open"] { transform: scale(1.008); box-shadow: 0 0 0 3px rgba(251,191,36,0.12); border-color: rgba(251,191,36,0.5) !important; }
       @keyframes fieldShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
       .field-shake { animation: fieldShake 280ms ease-in-out; }
       .add-passenger-btn:hover { box-shadow: 0 0 0 1px rgba(34,211,238,0.15), 0 8px 24px rgba(34,211,238,0.08); }
@@ -1263,10 +1640,28 @@ function PageStyles() {
       .navbot-bounce { animation: navbotFloat 0.6s ease-in-out infinite; transform: scale(1.05); }
       @keyframes tooltipIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
       .navbot-tooltip { animation: tooltipIn 180ms ease-out; }
+
+      @keyframes cometTravel {
+        0% { left: 0%; opacity: 0; }
+        15% { opacity: 1; }
+        85% { opacity: 1; }
+        100% { left: 100%; opacity: 0; }
+      }
+      .timeline-comet {
+        animation: cometTravel 2.4s ease-in-out infinite;
+      }
+      @keyframes planeFloat {
+        0%, 100% { transform: translateY(0) scale(1); }
+        50% { transform: translateY(-2px) scale(1.1); }
+      }
+      .plane-bob {
+        animation: planeFloat 2.6s ease-in-out infinite;
+      }
+
       @media (prefers-reduced-motion: reduce) {
         .step-pulse, .tick-pop, .check-pop, .field-shake,
         .savings-pulse, .shimmer-card::after, .navbot-float, .navbot-bounce,
-        .navbot-tooltip { animation: none !important; }
+        .navbot-tooltip, .timeline-comet, .plane-bob { animation: none !important; }
       }
     `}</style>
   )
