@@ -312,6 +312,21 @@ export default function SeatSelectionPage() {
   const [skipCabin, setSkipCabin] = useState<CabinKey>("economy")
   const [skipErrorMessage, setSkipErrorMessage] = useState<string | null>(null)
   const [skipPartialNote, setSkipPartialNote] = useState<string | null>(null)
+  const [legTransitionTimer, setLegTransitionTimer] = useState<NodeJS.Timeout | null>(null)
+  const [seatNotice, setSeatNotice] = useState<{
+    seatNumber: string
+    legIndex: number
+    legLabel: string
+    autoSwitching?: boolean
+  } | null>(null)
+
+  function cancelAutoSwitch() {
+    if (legTransitionTimer) {
+      clearTimeout(legTransitionTimer)
+      setLegTransitionTimer(null)
+    }
+    setSeatNotice((prev) => (prev ? { ...prev, autoSwitching: false } : null))
+  }
 
   // 1. Load checkout selection from storage or support demo=1 query parameter
   useEffect(() => {
@@ -534,32 +549,81 @@ export default function SeatSelectionPage() {
 
   function selectSeat(seat: ApiSeat) {
     if (!seat.isAvailable) return
-    const key = `${activeLegIndex}:${activePassenger.id}`
+    const legIdx = activeLegIndex
+    const currentPax = activePassenger
+    const key = `${legIdx}:${currentPax.id}`
+
+    if (legTransitionTimer) {
+      clearTimeout(legTransitionTimer)
+      setLegTransitionTimer(null)
+    }
 
     setPicks((prev) => {
       const next = { ...prev }
       Object.keys(next).forEach((k) => {
-        if (k.startsWith(`${activeLegIndex}:`) && next[k] === seat.id) delete next[k]
+        if (k.startsWith(`${legIdx}:`) && next[k] === seat.id) delete next[k]
       })
       next[key] = seat.id
-
-      const nextPaxIdx = passengers.findIndex(
-        (p, i) => i > activePassengerIndex && !next[`${activeLegIndex}:${p.id}`]
-      )
-      if (nextPaxIdx !== -1) {
-        setActivePassengerIndex(nextPaxIdx)
-      } else if (activeLegIndex < legs.length - 1) {
-        setActiveLegIndex(activeLegIndex + 1)
-        setActivePassengerIndex(0)
-      }
       return next
     })
+
+    const legLabel = legs[legIdx]?.label ?? "Flight"
+
+    // Check if other passengers on this leg still need seats
+    const nextPaxIdx = passengers.findIndex(
+      (p, i) => i > activePassengerIndex && !picks[`${legIdx}:${p.id}`] && p.id !== currentPax.id
+    )
+
+    if (nextPaxIdx !== -1) {
+      setSeatNotice({
+        seatNumber: seat.seatNumber,
+        legIndex: legIdx,
+        legLabel,
+        autoSwitching: false,
+      })
+      setTimeout(() => {
+        setActivePassengerIndex(nextPaxIdx)
+      }, 500)
+    } else if (legIdx < legs.length - 1) {
+      // Current leg complete! Keep user on current leg so they clearly see the seat selected
+      setSeatNotice({
+        seatNumber: seat.seatNumber,
+        legIndex: legIdx,
+        legLabel,
+        autoSwitching: true,
+      })
+
+      // Wait 2.2 seconds before auto-transitioning to next leg
+      const timer = setTimeout(() => {
+        setActiveLegIndex(legIdx + 1)
+        setActivePassengerIndex(0)
+        setSeatNotice({
+          seatNumber: seat.seatNumber,
+          legIndex: legIdx,
+          legLabel,
+          autoSwitching: false,
+        })
+      }, 2200)
+      setLegTransitionTimer(timer)
+    } else {
+      setSeatNotice({
+        seatNumber: seat.seatNumber,
+        legIndex: legIdx,
+        legLabel,
+        autoSwitching: false,
+      })
+    }
   }
 
-  function clearSeat(passengerId: string) {
+  function clearSeat(passengerId: string, legIndex: number = activeLegIndex) {
+    if (legTransitionTimer) {
+      clearTimeout(legTransitionTimer)
+      setLegTransitionTimer(null)
+    }
+    setSeatNotice(null)
     setPicks((prev) => {
       const next = { ...prev }
-      delete next[`${activeLegIndex}:${passengerId}`]
+      delete next[`${legIndex}:${passengerId}`]
       return next
     })
   }
@@ -867,6 +931,72 @@ export default function SeatSelectionPage() {
 
         {/* CENTER COLUMN: Aircraft Cabin Fuselage & Seat Map */}
         <div className="col-span-12 lg:col-span-6 space-y-4">
+          {/* Reassuring Confirmation Banner */}
+          {seatNotice && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-500/15 via-[#0C1A2E] to-amber-500/10 border border-emerald-500/30 flex items-center justify-between gap-3 shadow-lg"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="w-6 h-6 rounded-full bg-emerald-400 text-slate-950 font-black text-xs flex items-center justify-center shrink-0">
+                  ✓
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-white truncate">
+                    {seatNotice.legLabel} Seat {seatNotice.seatNumber} Confirmed!
+                  </p>
+                  <p className="text-[11px] text-slate-300">
+                    {seatNotice.autoSwitching
+                      ? `Moving to return flight in 2s…`
+                      : activeLegIndex !== seatNotice.legIndex
+                      ? `${seatNotice.legLabel} seat is saved. Now select your ${legs[activeLegIndex]?.label} seat.`
+                      : "Seat confirmed and locked in your manifest."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {seatNotice.autoSwitching ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (legTransitionTimer) clearTimeout(legTransitionTimer)
+                        setLegTransitionTimer(null)
+                        setActiveLegIndex(activeLegIndex + 1)
+                        setActivePassengerIndex(0)
+                        setSeatNotice({
+                          ...seatNotice,
+                          autoSwitching: false,
+                        })
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-amber-400 text-slate-950 font-bold text-xs hover:bg-amber-300 transition-colors cursor-pointer"
+                    >
+                      Switch Now →
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelAutoSwitch}
+                      className="text-[11px] text-slate-400 hover:text-white px-2 py-1 transition-colors cursor-pointer"
+                    >
+                      Stay
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setSeatNotice(null)}
+                    className="text-slate-500 hover:text-white text-xs p-1 cursor-pointer"
+                    title="Dismiss"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          )}
+
           {activeLeg && !activeLeg.hasSeatMap ? (
             <NoSeatMapCard />
           ) : activeLeg && visibleSeats.length === 0 ? (
@@ -906,6 +1036,7 @@ export default function SeatSelectionPage() {
             submitting={submitting}
             submitError={submitError}
             onSelectPassenger={setActivePassengerIndex}
+            onSelectLeg={setActiveLegIndex}
             onClearSeat={clearSeat}
             onContinue={handleContinue}
             onSkip={openSkipModal}
@@ -969,6 +1100,12 @@ function LegSelectorDeck({
         const isReturn = i === 1
         const assignedCount = passengers.filter((p) => !!picks[`${i}:${p.id}`]).length
         const isComplete = assignedCount === passengers.length
+        const assignedSeatNumbers = passengers
+          .map((p) => {
+            const seatId = picks[`${i}:${p.id}`]
+            return leg.seats.find((s) => s.id === seatId)?.seatNumber
+          })
+          .filter(Boolean)
 
         return (
           <button
@@ -1023,7 +1160,10 @@ function LegSelectorDeck({
               <p className="text-[11px] text-slate-400 mt-0.5">
                 {isComplete ? (
                   <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                    <Check className="w-3 h-3 inline" /> Seats Assigned ({assignedCount}/{passengers.length})
+                    <Check className="w-3 h-3 inline" />
+                    {assignedSeatNumbers.length === 1
+                      ? `Seat ${assignedSeatNumbers[0]} Assigned`
+                      : `Seats Assigned (${assignedCount}/${passengers.length})`}
                   </span>
                 ) : (
                   <span className={isActive ? "text-amber-300/80" : "text-slate-500"}>
@@ -2076,6 +2216,7 @@ function SeatSummary({
   submitting,
   submitError,
   onSelectPassenger,
+  onSelectLeg,
   onClearSeat,
   onContinue,
   onSkip,
@@ -2091,13 +2232,13 @@ function SeatSummary({
   submitting: boolean
   submitError: string | null
   onSelectPassenger: (i: number) => void
-  onClearSeat: (passengerId: string) => void
+  onSelectLeg?: (legIndex: number) => void
+  onClearSeat: (passengerId: string, legIndex?: number) => void
   onContinue: () => void
   onSkip: () => void
 }) {
-  const activeLeg = legs[activeLegIndex]
+  const isRoundTrip = legs.length > 1
   const assignedCount = passengers.filter((p) => !!picks[`${activeLegIndex}:${p.id}`]).length
-  const praise = CABIN_PRAISE[activeCabin]
 
   return (
     <div className="sticky top-20 space-y-4">
@@ -2106,94 +2247,180 @@ function SeatSummary({
         <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between">
           <div>
             <p className="font-display text-sm font-bold text-white tracking-wide">Reservation Manifest</p>
-            <p className="text-[10.5px] text-slate-400">Assign seat per passenger</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              {isRoundTrip ? "Departure & Return seats" : "Assigned seats per passenger"}
+            </p>
           </div>
           <span
             className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
-              assignedCount === passengers.length
+              allSeatsAssigned
                 ? "bg-emerald-400/15 border-emerald-400/30 text-emerald-300"
                 : "bg-amber-400/15 border-amber-400/30 text-amber-300"
             }`}
           >
-            {assignedCount}/{passengers.length} Assigned
+            {allSeatsAssigned ? "All Assigned" : `${assignedCount}/${passengers.length} This Leg`}
           </span>
         </div>
 
         {/* Passenger Cards */}
-        <div className="p-4 space-y-2.5">
+        <div className="p-4 space-y-3">
           {passengers.map((p, pIdx) => {
+            const color = paxColor(pIdx)
+
+            if (isRoundTrip) {
+              return (
+                <div
+                  key={p.id}
+                  className="p-3.5 rounded-xl border border-white/[0.08] bg-white/[0.02] space-y-2.5 hover:border-white/15 transition-all"
+                >
+                  {/* Passenger Name & Type */}
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0 ${color.dot} text-[#060B14] shadow-sm`}
+                    >
+                      {paxInitials(p, pIdx)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-white truncate">{paxFullName(p, pIdx)}</p>
+                      <p className="text-[10px] text-slate-400 font-medium">{paxTypeLabel(p)}</p>
+                    </div>
+                  </div>
+
+                  {/* Leg Rows */}
+                  <div className="space-y-1.5 pt-1 border-t border-white/[0.06]">
+                    {legs.map((leg, lIdx) => {
+                      const legSeatId = picks[`${lIdx}:${p.id}`]
+                      const legSeat = leg.seats.find((s) => s.id === legSeatId)
+                      const isCurrentLeg = activeLegIndex === lIdx && activePassengerIndex === pIdx
+
+                      return (
+                        <div
+                          key={leg.label}
+                          onClick={() => {
+                            if (onSelectLeg) onSelectLeg(lIdx)
+                            onSelectPassenger(pIdx)
+                          }}
+                          className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
+                            isCurrentLeg
+                              ? "bg-amber-400/[0.12] border border-amber-400/30 shadow-sm"
+                              : "bg-white/[0.02] hover:bg-white/[0.05] border border-transparent text-slate-400"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                legSeat
+                                  ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]"
+                                  : isCurrentLeg
+                                  ? "bg-amber-400 animate-pulse"
+                                  : "bg-slate-600"
+                              }`}
+                            />
+                            <span className="text-[11px] font-medium text-slate-300 truncate">
+                              {leg.label} ({leg.flight.origin} → {leg.flight.destination})
+                            </span>
+                          </div>
+
+                          {legSeat ? (
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="font-mono font-black text-[11px] text-amber-300 bg-amber-400/15 border border-amber-400/30 px-1.5 py-0.5 rounded shadow-sm">
+                                {legSeat.seatNumber}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onClearSeat(p.id, lIdx)
+                                }}
+                                className="w-5 h-5 rounded text-slate-500 hover:text-rose-400 flex items-center justify-center transition-colors cursor-pointer"
+                                title={`Clear ${leg.label} seat`}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span
+                              className={`text-[11px] shrink-0 font-medium ${
+                                isCurrentLeg ? "text-amber-300 font-bold" : "text-slate-500"
+                              }`}
+                            >
+                              {isCurrentLeg ? "Pick seat" : "Pending"}
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            }
+
+            // One-way layout
+            const activeLeg = legs[activeLegIndex]
             const seatId = picks[`${activeLegIndex}:${p.id}`]
             const seat = activeLeg?.seats.find((s) => s.id === seatId)
-            const color = paxColor(pIdx)
             const isActive = activePassengerIndex === pIdx
 
             return (
               <div
                 key={p.id}
                 onClick={() => onSelectPassenger(pIdx)}
-                className={`relative flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 cursor-pointer ${
+                className={`p-3.5 rounded-xl border transition-all cursor-pointer space-y-2.5 ${
                   isActive
-                    ? "bg-gradient-to-r from-amber-400/[0.12] to-transparent border-[#D4AF37] shadow-[0_0_18px_rgba(212,175,55,0.15)]"
-                    : "border-white/[0.06] bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.04]"
+                    ? "bg-amber-400/[0.08] border-amber-400/30 shadow-sm"
+                    : "bg-white/[0.02] border-white/[0.06] hover:border-white/12"
                 }`}
               >
-                {/* Avatar with initials */}
-                <span
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${color.dot} text-[#060B14] shadow-sm`}
-                >
-                  {paxInitials(p, pIdx)}
-                </span>
-
-                {/* Name & Type */}
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-white truncate">{paxFullName(p, pIdx)}</p>
-                  <div className="flex items-center gap-1.5 text-[10px] mt-0.5">
-                    <span className="text-slate-400 font-medium">{paxTypeLabel(p)}</span>
-                    <span className="text-slate-600">•</span>
-                    {seat ? (
-                      <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                        Seat Assigned
-                      </span>
-                    ) : isActive ? (
-                      <span className="text-amber-400 font-semibold flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                        Selecting Seat
-                      </span>
-                    ) : (
-                      <span className="text-slate-500 font-medium">No Seat</span>
-                    )}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${color.dot} text-[#060B14] shadow-sm`}
+                    >
+                      {paxInitials(p, pIdx)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-white truncate">{paxFullName(p, pIdx)}</p>
+                      <p className="text-[10px] text-slate-400 font-medium">{paxTypeLabel(p)}</p>
+                    </div>
                   </div>
-                </div>
 
-                {/* Assigned Seat Badge or Prompt */}
-                {seat ? (
-                  <div className="flex items-center gap-2 shrink-0">
-                    <div className="text-right">
-                      <span className="inline-flex items-center font-mono text-xs font-black text-amber-300 bg-amber-400/15 border border-amber-400/30 rounded-lg px-2 py-0.5 shadow-sm">
+                  {seat ? (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-mono font-black text-xs text-amber-300 bg-amber-400/15 border border-amber-400/30 px-2 py-0.5 rounded shadow-sm">
                         {seat.seatNumber}
                       </span>
-                      <p className="text-[10px] text-slate-400 font-mono tabular-nums mt-0.5">
-                        {seat.price > 0 ? `+₹${Math.round(seat.price).toLocaleString("en-IN")}` : "Included"}
-                      </p>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onClearSeat(p.id)
+                        }}
+                        className="w-6 h-6 rounded text-slate-500 hover:text-rose-400 flex items-center justify-center transition-colors cursor-pointer"
+                        title="Clear seat"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onClearSeat(p.id)
-                      }}
-                      className="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/15 border border-transparent hover:border-rose-500/30 flex items-center justify-center transition-all cursor-pointer"
-                      title="Clear assigned seat"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ) : (
-                  <span className="text-[10.5px] text-amber-300/90 font-semibold bg-amber-400/10 border border-amber-400/25 px-2.5 py-1 rounded-lg shrink-0">
-                    Pick a seat
+                  ) : (
+                    <span className="text-[11px] font-semibold text-amber-300 bg-amber-400/10 border border-amber-400/20 px-2.5 py-1 rounded-lg shrink-0">
+                      Pick a seat
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-white/[0.06]">
+                  <span className="text-slate-400 flex items-center gap-1.5">
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        seat ? "bg-emerald-400" : "bg-amber-400 animate-pulse"
+                      }`}
+                    />
+                    {seat ? "Seat confirmed" : "Selecting seat"}
                   </span>
-                )}
+                  {seat && seat.price > 0 && (
+                    <span className="font-mono text-slate-400">+₹{Math.round(seat.price).toLocaleString("en-IN")}</span>
+                  )}
+                </div>
               </div>
             )
           })}
@@ -2207,47 +2434,31 @@ function SeatSummary({
         </div>
 
         {/* Total Seat Price Pod */}
-        <div className="p-3.5 sm:p-4">
-          <div className="p-3.5 rounded-xl bg-gradient-to-br from-[#12233f]/90 via-[#0d1b33]/90 to-[#0a1426]/90 border border-amber-400/25 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),0_8px_24px_rgba(0,0,0,0.35)] relative overflow-hidden">
-            {/* Top row: Label & Assigned Badge */}
-            <div className="flex items-center justify-between gap-1.5 pb-2 border-b border-white/[0.08]">
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)] shrink-0" />
-                <span className="text-[10.5px] font-mono uppercase tracking-wider text-slate-300 font-bold whitespace-nowrap">
-                  Total Seat Fare
-                </span>
-              </div>
-              <span className="text-[9.5px] font-mono text-amber-300 bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-full shrink-0 whitespace-nowrap">
-                {assignedCount}/{passengers.length} Assigned
+        <div className="p-4">
+          <div className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.08] space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-300">Total Seat Fare</span>
+              <span className="text-[11px] font-mono text-slate-400">
+                {totalSeatPrice === 0 ? "Complimentary" : "Applied to booking"}
               </span>
             </div>
 
-            {/* Bottom row: Subtitle & Rolling Price Counter */}
-            <div className="flex items-end justify-between gap-2 pt-2.5">
-              <div className="min-w-0 flex-1">
-                <p className="text-[10.5px] text-slate-400 font-medium leading-tight">
-                  {Math.round(totalSeatPrice) === 0 ? "Complimentary selection" : "Added to booking total"}
-                </p>
-                <p className="text-[9.5px] text-slate-400 mt-0.5 font-mono">
-                  {assignedCount === 0 ? "Standard allocation" : `${assignedCount} seat${assignedCount > 1 ? "s" : ""} selected`}
-                </p>
-              </div>
-
-              <div className="shrink-0 text-right">
-                <RollingPriceCounter value={totalSeatPrice} />
-              </div>
+            <div className="flex items-baseline justify-between pt-1 border-t border-white/[0.06]">
+              <RollingPriceCounter value={totalSeatPrice} />
+              <span className="text-xs text-slate-400">
+                {allSeatsAssigned ? "All seats reserved" : `${assignedCount} of ${passengers.length} selected`}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Praise / In-Flight perk banner if seats selected */}
-        {assignedCount > 0 && (
-          <div className="mx-5 mb-4 p-3 rounded-xl bg-emerald-500/[0.08] border border-emerald-500/20 flex items-start gap-2.5">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-xs font-bold text-emerald-300">{praise.title}</p>
-              <p className="text-[10.5px] text-emerald-300/70 leading-tight mt-0.5">{praise.body}</p>
-            </div>
+        {/* In-Flight perk banner if all seats selected */}
+        {allSeatsAssigned && (
+          <div className="mx-4 mb-3 p-3 rounded-xl bg-emerald-500/[0.08] border border-emerald-500/20 flex items-center gap-2.5">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <p className="text-xs text-emerald-300 font-medium">
+              All seats secured · Ready for add-ons
+            </p>
           </div>
         )}
 
