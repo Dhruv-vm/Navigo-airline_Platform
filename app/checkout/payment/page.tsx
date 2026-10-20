@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import Navbar from "@/components/navbar"
+import { RollingPriceCounter } from "@/components/rolling-price-counter"
 import { PaymentCard } from "./PaymentCard"
 import { RazorpaySandboxModal } from "./RazorpaySandboxModal"
 import { UpiPanel } from "./UpiPanel"
@@ -170,8 +171,65 @@ export default function PaymentPage() {
 
   useEffect(() => {
     try {
+      if (typeof window !== "undefined" && window.location.search.includes("demo=1")) {
+        const mockSelection: CheckoutSelection = {
+          origin: "DEL",
+          destination: "BLR",
+          passengers: 1,
+          mode: "roundtrip",
+          totalPrice: 27000,
+          seatSelectionPrice: 28851,
+          savedAt: Date.now(),
+          bookingId: "demo-booking-payment-123",
+          holdExpiresAt: new Date(Date.now() + 14 * 60 * 1000 + 40 * 1000).toISOString(),
+          departFlight: {
+            id: "flight-del-blr-1",
+            flight_instance_id: "fi-del-blr-1",
+            airline: "Akasa Air",
+            origin: "DEL",
+            destination: "BLR",
+            departure_time: "21:15",
+            arrival_time: "00:00",
+            aircraft: "Boeing 737 MAX",
+            stops: 0,
+            final_price: 14500,
+            duration: "2h 45m",
+            travel_date: "2026-10-19",
+          },
+          returnFlight: {
+            id: "flight-blr-del-2",
+            flight_instance_id: "fi-blr-del-2",
+            airline: "IndiGo",
+            origin: "BLR",
+            destination: "DEL",
+            departure_time: "13:15",
+            arrival_time: "17:45",
+            aircraft: "Airbus A320neo",
+            stops: 1,
+            final_price: 12500,
+            duration: "4h 30m",
+            travel_date: "2026-10-24",
+          },
+          savedPassengers: [
+            { id: "pax-1", firstName: "Rahul", lastName: "Sharma" },
+          ],
+          addons: [
+            { id: "baggage", title: "Excess Baggage Allowance", variant: "15 kg", price: 900 },
+            { id: "meal", title: "Chef's Gourmet Meal", variant: "1 Meal", price: 360 },
+          ],
+          addonsTotal: 1260,
+        }
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(mockSelection))
+        setSelection(mockSelection)
+        setLoadState("found")
+        return
+      }
+
       const raw = sessionStorage.getItem(STORAGE_KEY)
-      if (!raw) { setLoadState("missing"); return }
+      if (!raw) {
+        setLoadState("missing")
+        return
+      }
       const parsed = JSON.parse(raw) as CheckoutSelection
       if (!parsed.bookingId) { setLoadState("missing"); return }
       setSelection(parsed)
@@ -471,8 +529,11 @@ export default function PaymentPage() {
 
   return (
     <PageShell>
-      <div className={`flex items-center justify-between gap-4 mb-3 transition-all duration-500 ease-out ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-        <p className="text-[11px] uppercase tracking-widest text-slate-500">Review & Pay</p>
+      <div className={`flex items-center justify-between gap-4 mb-3.5 transition-all duration-500 ease-out ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]" />
+          <p className="text-xs font-semibold text-slate-300 tracking-wide">Review & Final Payment</p>
+        </div>
         {msLeft !== null && <HoldTimer msLeft={msLeft} holdMinutes={HOLD_MINUTES} />}
       </div>
 
@@ -680,27 +741,41 @@ function HoldTimer({ msLeft, holdMinutes }: { msLeft: number; holdMinutes: numbe
   const mm = Math.floor(totalSeconds / 60)
   const ss = totalSeconds % 60
   const urgent = totalSeconds <= 120
-  const radius = 14
+  const radius = 13
   const circumference = 2 * Math.PI * radius
   const pct = Math.min(1, Math.max(0, totalSeconds / (holdMinutes * 60)))
   const dashOffset = circumference * (1 - pct)
 
   return (
-    <div className={`inline-flex items-center gap-2.5 rounded-full border pl-2 pr-4 py-1.5 transition-colors ${
-      urgent ? "border-rose-400/40 bg-rose-400/[0.08] hold-timer-urgent" : "border-amber-400/25 bg-amber-400/[0.06]"
-    }`} role="timer" aria-live="polite">
-      <svg width="32" height="32" viewBox="0 0 32 32" className="shrink-0 -rotate-90" aria-hidden>
-        <circle cx="16" cy="16" r={radius} fill="none" stroke="currentColor" strokeWidth="3" className="text-white/10" />
+    <div
+      className={`inline-flex items-center gap-2.5 rounded-full border pl-2.5 pr-4 py-1.5 transition-all shadow-sm ${
+        urgent
+          ? "border-rose-400/40 bg-rose-500/[0.1] text-rose-200"
+          : "border-amber-400/30 bg-[#0E1A2C]/90 text-amber-100"
+      }`}
+      role="timer"
+      aria-live="polite"
+    >
+      <svg width="30" height="30" viewBox="0 0 30 30" className="shrink-0 -rotate-90" aria-hidden>
+        <circle cx="15" cy="15" r={radius} fill="none" stroke="currentColor" strokeWidth="2.5" className="text-white/10" />
         <circle
-          cx="16" cy="16" r={radius} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"
+          cx="15"
+          cy="15"
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={dashOffset}
-          className={`transition-[stroke-dashoffset] duration-1000 ease-linear ${urgent ? "text-rose-300" : "text-amber-300"}`}
+          className={`transition-[stroke-dashoffset] duration-1000 ease-linear ${urgent ? "text-rose-400" : "text-amber-400"}`}
         />
       </svg>
-      <div className="leading-tight">
-        <p className={`font-display text-sm font-bold tabular-nums ${urgent ? "text-rose-200" : "text-amber-100"}`}>{mm}:{ss.toString().padStart(2, "0")}</p>
-        <p className="text-[10px] text-slate-500 -mt-0.5">seats held</p>
+      <div className="flex items-baseline gap-1.5 leading-none">
+        <span className="text-[11px] text-slate-400 font-medium">Seats held:</span>
+        <span className={`font-display text-sm font-bold tabular-nums ${urgent ? "text-rose-300 font-extrabold" : "text-amber-300"}`}>
+          {mm}:{ss.toString().padStart(2, "0")}
+        </span>
       </div>
     </div>
   )
@@ -753,8 +828,8 @@ function FlightLegRow({ flight, tag }: { flight: StoredFlight; tag?: "Departure"
 
 function PassengerRow({ passengers }: { passengers: NonNullable<CheckoutSelection["savedPassengers"]> }) {
   return (
-    <div className="px-5 py-4">
-      <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2.5">Passengers · {passengers.length}</p>
+    <div className="px-5 py-3.5">
+      <p className="text-xs font-semibold text-slate-400 mb-2">Confirmed Travelers ({passengers.length})</p>
       <div className="flex flex-wrap gap-2">
         {passengers.map((p, i) => (
           <div key={i} className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-white/[0.03] border border-white/[0.08]">
@@ -771,13 +846,13 @@ function PassengerRow({ passengers }: { passengers: NonNullable<CheckoutSelectio
 
 function AddonsRow({ addons }: { addons: StoredAddon[] }) {
   return (
-    <div className="px-5 py-4">
-      <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2.5">Add-ons</p>
+    <div className="px-5 py-3.5">
+      <p className="text-xs font-semibold text-slate-400 mb-2">Selected Add-ons ({addons.length})</p>
       <div className="space-y-1.5">
         {addons.map((a) => (
-          <div key={a.id} className="flex items-center justify-between text-xs">
-            <span className="text-slate-400">{a.title} <span className="text-slate-600">· {a.variant}</span></span>
-            <span className="text-slate-300 tabular-nums">{formatINR(a.price)}</span>
+          <div key={a.id} className="flex items-center justify-between text-xs py-0.5">
+            <span className="text-slate-300">{a.title} <span className="text-slate-500">· {a.variant}</span></span>
+            <span className="text-amber-300 font-medium tabular-nums">{formatINR(a.price)}</span>
           </div>
         ))}
       </div>
@@ -907,31 +982,31 @@ function FareBreakdownSection({
 }) {
   return (
     <div className="px-5 pt-4 pb-5">
-      <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2.5">Fare Breakdown</p>
-      <div className="space-y-1.5 text-[12px] mb-4">
-        <div className="flex justify-between"><span className="text-slate-500">Base Fare</span><span className="text-slate-400 tabular-nums">{formatINR(baseFare)}</span></div>
-        <div className="flex justify-between"><span className="text-slate-500">Taxes & Fees</span><span className="text-slate-400 tabular-nums">{formatINR(taxesAndFees)}</span></div>
+      <p className="text-xs font-semibold text-slate-400 mb-2.5">Fare Breakdown</p>
+      <div className="space-y-2 text-xs mb-4">
+        <div className="flex justify-between items-center"><span className="text-slate-400">Flight Base Fare</span><span className="text-slate-300 font-medium tabular-nums">{formatINR(baseFare)}</span></div>
+        <div className="flex justify-between items-center"><span className="text-slate-400">Aviation Taxes & Fees</span><span className="text-slate-300 font-medium tabular-nums">{formatINR(taxesAndFees)}</span></div>
         {seatSelectionPrice > 0 && (
-          <div className="flex justify-between"><span className="text-slate-500">Seat Selection</span><span className="text-slate-400 tabular-nums">{formatINR(seatSelectionPrice)}</span></div>
+          <div className="flex justify-between items-center"><span className="text-slate-400">Seat Selection</span><span className="text-slate-300 font-medium tabular-nums">{formatINR(seatSelectionPrice)}</span></div>
         )}
         {addonsTotal > 0 && (
-          <div className="flex justify-between"><span className="text-slate-500">Add-ons Total</span><span className="text-emerald-400/80 tabular-nums">{formatINR(addonsTotal)}</span></div>
+          <div className="flex justify-between items-center"><span className="text-slate-400">Add-ons Total</span><span className="text-emerald-400 font-medium tabular-nums">{formatINR(addonsTotal)}</span></div>
         )}
         {navpointsDiscount > 0 && (
-          <div className="flex justify-between text-emerald-400 font-semibold">
+          <div className="flex justify-between items-center text-emerald-400 font-semibold">
             <span className="flex items-center gap-1">🪙 NavPoints Discount ({actualPointsUsed} pts)</span>
             <span className="tabular-nums">-{formatINR(navpointsDiscount)}</span>
           </div>
         )}
       </div>
-      <div className="border border-blue-400/25 bg-blue-500/[0.07] rounded-xl px-4 py-3.5 flex items-end justify-between">
+      <div className="border border-amber-400/25 bg-[#0B1728] rounded-xl px-4 py-3.5 flex items-center justify-between shadow-sm">
         <div>
-          <span className="text-sm text-slate-300 block font-medium">Amount to Pay</span>
-          <span className="text-[10px] text-amber-300/90 font-medium mt-0.5 flex items-center gap-1">
+          <span className="text-xs uppercase font-bold text-slate-400 tracking-wide block">Amount to Pay</span>
+          <span className="text-[11px] text-amber-300 font-medium mt-0.5 flex items-center gap-1">
             ✨ Earn +{earnedPoints} pts on booking
           </span>
         </div>
-        <span className="font-board text-[28px] leading-none font-extrabold tabular-nums gold-glow-text">{formatINR(tripTotal)}</span>
+        <RollingPriceCounter value={tripTotal} size="md" />
       </div>
     </div>
   )

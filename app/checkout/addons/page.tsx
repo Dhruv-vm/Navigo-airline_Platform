@@ -3,6 +3,27 @@
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Navbar from "@/components/navbar"
+import { RollingPriceCounter } from "@/components/rolling-price-counter"
+import {
+  Sparkles,
+  Luggage,
+  Armchair,
+  Utensils,
+  Briefcase,
+  ShieldCheck,
+  Plane,
+  Clock,
+  ChevronUp,
+  Check,
+  Coffee,
+  Wifi,
+  Zap,
+  Edit3,
+  ShieldAlert,
+  ArrowRight,
+  Headphones,
+  RotateCcw,
+} from "lucide-react"
 
 type StoredFlight = {
   id: string
@@ -17,6 +38,7 @@ type StoredFlight = {
   final_price: number
   duration?: string
   travel_date?: string
+  flight_number?: string
 }
 
 type CheckoutSelection = {
@@ -31,16 +53,13 @@ type CheckoutSelection = {
   bookingId?: string
   holdExpiresAt?: string
   seatSelectionPrice?: number
+  savedPassengers?: any[]
+  addons?: { id: string; title: string; variant: string; price: number }[]
+  addonsTotal?: number
 }
 
 const STORAGE_KEY = "navigo:checkoutSelection"
 
-// Rebuilds the original /flights search query from the stored selection —
-// same field names the selection was already saved with (origin,
-// destination, travel_date, passengers, mode). Param names below match
-// what app/api/flights/route.ts actually reads (`depart`/`return`, per its
-// own comment about matching that naming convention) — confirmed against
-// that route directly, not guessed.
 function buildFlightSearchUrl(selection: CheckoutSelection): string {
   const params = new URLSearchParams()
   if (selection.origin) params.set("origin", selection.origin)
@@ -67,6 +86,24 @@ const airlineLogos: Record<string, string> = {
   "Navigo": "/logo.png",
 }
 
+const CITY_NAMES: Record<string, string> = {
+  DEL: "Delhi",
+  BOM: "Mumbai",
+  BLR: "Bengaluru",
+  MAA: "Chennai",
+  CCU: "Kolkata",
+  HYD: "Hyderabad",
+  GOI: "Goa",
+  COK: "Kochi",
+  AMD: "Ahmedabad",
+  PNQ: "Pune",
+  DXB: "Dubai",
+  SIN: "Singapore",
+  LHR: "London",
+  HND: "Tokyo",
+  JFK: "New York",
+}
+
 type CategoryId = "recommended" | "baggage" | "comfort" | "meals" | "essentials" | "insurance" | "airport"
 
 type AddonVariant = { label: string; price: number; originalPrice?: number }
@@ -74,33 +111,19 @@ type Addon = {
   id: string
   title: string
   desc: string
-  icon: string
   category: Exclude<CategoryId, "recommended">
-  // Local asset path, same convention as airlineLogos / the seat-pod PNGs
-  // elsewhere in this app. Missing or 404-ing gracefully falls back to an
-  // icon illustration (see AddonHero) — drop real photos into
-  // /public/addons/ (baggage.svg, legroom.svg, meal.svg, lounge.svg,
-  // priority.svg, insurance.svg, wifi.svg, fasttrack.svg) and they'll pick
-  // up automatically, nothing else to wire up.
-  image?: string
+  iconType: "baggage" | "legroom" | "meal" | "lounge" | "priority" | "insurance" | "wifi" | "fasttrack"
   discountPct?: number
   variants: AddonVariant[]
 }
 
-// ---------------------------------------------------------------------------
-// Prices are real INR figures, proportionate to the rest of checkout (base
-// fare ~₹38,642, seat prices ₹6,200–₹24,750) — not the old $18–$100
-// placeholders. Each discountPct is preserved exactly.
-// ---------------------------------------------------------------------------
-
 const RECOMMENDED_ADDONS: Addon[] = [
   {
     id: "baggage",
-    title: "Extra Baggage",
-    desc: "Add more baggage allowance to your trip.",
-    icon: "🧳",
+    title: "Excess Baggage Allowance",
+    desc: "Pre-book extra check-in baggage at up to 20% discounted airport rates.",
     category: "baggage",
-    image: "/addons/baggage.svg",
+    iconType: "baggage",
     discountPct: 20,
     variants: [
       { label: "10 kg", price: 600, originalPrice: 750 },
@@ -110,59 +133,78 @@ const RECOMMENDED_ADDONS: Addon[] = [
   },
   {
     id: "legroom",
-    title: "Extra Legroom Seat",
-    desc: "More legroom for extra comfort.",
-    icon: "💺",
+    title: "Premium Legroom Seat",
+    desc: "Enjoy up to 34 inches of pitch with emergency exit or bulkhead seating.",
     category: "comfort",
-    image: "/addons/legroom.svg",
+    iconType: "legroom",
     discountPct: 15,
     variants: [{ label: "1 Seat", price: 1700, originalPrice: 2000 }],
   },
   {
     id: "meal",
-    title: "Gourmet Meal",
-    desc: "Enjoy a wide range of meal options.",
-    icon: "🍽️",
+    title: "Chef's Gourmet Meal",
+    desc: "Pre-order warm gourmet meals crafted by award-winning culinary partners.",
     category: "meals",
-    image: "/addons/meal.svg",
+    iconType: "meal",
     discountPct: 10,
     variants: [{ label: "1 Meal", price: 360, originalPrice: 400 }],
   },
   {
     id: "lounge",
-    title: "Lounge Access",
-    desc: "Relax in premium airport lounges.",
-    icon: "🛋️",
+    title: "Executive Lounge Access",
+    desc: "Unwind before boarding with complimentary hot buffet, high-speed Wi-Fi, and plush seating.",
     category: "airport",
-    image: "/addons/lounge.svg",
+    iconType: "lounge",
     discountPct: 20,
-    variants: [{ label: "1 Lounge", price: 960, originalPrice: 1200 }],
+    variants: [{ label: "1 Pass", price: 960, originalPrice: 1200 }],
   },
 ]
 
-// ✅ UI FIX: gave each "More Add-ons" entry a discountPct-free hero treatment
-// (image/icon field) so AddonMiniCard can reuse the same AddonHero component
-// as the recommended cards above — previously this section was flat
-// icon-in-a-box rows while RECOMMENDED_ADDONS got full illustrated cards,
-// which read as two different design systems stacked on one page.
 const MORE_ADDONS: Addon[] = [
-  { id: "priority", title: "Priority Boarding", desc: "Be among the first to board.", icon: "🚶", category: "airport", image: "/addons/priority.svg", variants: [{ label: "Add", price: 500 }] },
-  { id: "insurance", title: "Travel Insurance", desc: "Protect your trip from uncertainties.", icon: "🛡️", category: "insurance", image: "/addons/insurance.svg", variants: [{ label: "Add", price: 700 }] },
-  { id: "wifi", title: "Wi-Fi Onboard", desc: "Stay connected in the sky.", icon: "📶", category: "essentials", image: "/addons/wifi.svg", variants: [{ label: "Add", price: 250 }] },
-  { id: "baggage10", title: "Extra Baggage (10kg)", desc: "Add extra 10kg baggage.", icon: "🧳", category: "baggage", image: "/addons/baggage.svg", variants: [{ label: "Add", price: 600 }] },
-  { id: "fasttrack", title: "Airport Fast Track", desc: "Skip the queues and save time.", icon: "🏃", category: "airport", image: "/addons/fasttrack.svg", variants: [{ label: "Add", price: 800 }] },
+  {
+    id: "priority",
+    title: "Priority Boarding & Baggage",
+    desc: "Breeze through the gate first and receive your luggage on priority delivery.",
+    category: "airport",
+    iconType: "priority",
+    variants: [{ label: "Add Service", price: 500 }],
+  },
+  {
+    id: "insurance",
+    title: "Comprehensive Flight Cover",
+    desc: "Medical emergencies, baggage loss, trip cancellation and delays protected up to ₹10,00,000.",
+    category: "insurance",
+    iconType: "insurance",
+    variants: [{ label: "Add Cover", price: 700 }],
+  },
+  {
+    id: "wifi",
+    title: "High-Speed In-Flight Wi-Fi",
+    desc: "Stream, browse, and stay in touch above 35,000 feet with satellite broadband.",
+    category: "essentials",
+    iconType: "wifi",
+    variants: [{ label: "Flight Pass", price: 250 }],
+  },
+  {
+    id: "fasttrack",
+    title: "Airport Security Fast Track",
+    desc: "Skip long lines with dedicated security lanes at major international terminals.",
+    category: "airport",
+    iconType: "fasttrack",
+    variants: [{ label: "Express Pass", price: 800 }],
+  },
 ]
 
 const ALL_ADDONS = [...RECOMMENDED_ADDONS, ...MORE_ADDONS]
 
-const CATEGORIES: { id: CategoryId; label: string; sub: string; icon: React.ReactNode }[] = [
-  { id: "recommended", label: "Recommended", sub: "Best for your trip", icon: <SparkleIcon /> },
-  { id: "baggage", label: "Baggage", sub: "Extra baggage allowance", icon: <SuitcaseIcon /> },
-  { id: "comfort", label: "Seats & Comfort", sub: "Choose your comfort", icon: <SeatGlyphIcon /> },
-  { id: "meals", label: "Meals", sub: "Delicious in-flight meals", icon: <UtensilsIcon /> },
-  { id: "essentials", label: "Travel Essentials", sub: "Stay prepared", icon: <BriefcaseIcon /> },
-  { id: "insurance", label: "Insurance", sub: "Secure your journey", icon: <ShieldIcon /> },
-  { id: "airport", label: "Airport Services", sub: "Skip the lines", icon: <PlaneIcon /> },
+const CATEGORIES: { id: CategoryId; label: string; sub: string; icon: any }[] = [
+  { id: "recommended", label: "Recommended", sub: "Handpicked for your trip", icon: Sparkles },
+  { id: "baggage", label: "Baggage", sub: "Extra baggage allowance", icon: Luggage },
+  { id: "comfort", label: "Seats & Comfort", sub: "Extra legroom & cabin upgrades", icon: Armchair },
+  { id: "meals", label: "In-Flight Dining", sub: "Warm meals & refreshments", icon: Utensils },
+  { id: "essentials", label: "Travel Essentials", sub: "Wi-Fi & inflight kits", icon: Briefcase },
+  { id: "insurance", label: "Travel Protection", sub: "Complete trip assurance", icon: ShieldCheck },
+  { id: "airport", label: "Airport Privileges", sub: "Lounges & priority boarding", icon: Plane },
 ]
 
 const HOLD_MINUTES = 15
@@ -191,8 +233,17 @@ function formatTime(timeStr?: string): string {
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 }
 
-// ₹ + en-IN grouping (₹1,23,456) everywhere on this page, matching the
-// seats page — replaces the old bare `.toLocaleString()` + "$".
+function formatDateLabel(dateStr?: string): string {
+  if (!dateStr) return "Mon, 19 Oct"
+  try {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return dateStr
+    return d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })
+  } catch {
+    return dateStr
+  }
+}
+
 function formatINR(amount: number): string {
   return `₹${Math.round(amount).toLocaleString("en-IN")}`
 }
@@ -226,7 +277,6 @@ export default function AddonsPage() {
         priceMap.get(`addon-${addon.id}`) ||
         priceMap.get(addon.id) ||
         (addon.id === "baggage" && priceMap.get("addon-bag-15")) ||
-        (addon.id === "baggage10" && (priceMap.get("addon-bag-15") ? Math.round(priceMap.get("addon-bag-15")! * 0.6) : undefined)) ||
         (addon.id === "meal" && priceMap.get("addon-meal-exec")) ||
         (addon.id === "lounge" && priceMap.get("addon-lounge-del")) ||
         (addon.id === "priority" && priceMap.get("addon-priority-board")) ||
@@ -256,10 +306,6 @@ export default function AddonsPage() {
     )
   }, [activeAllAddons])
 
-  // ── Hold countdown ──────────────────────────────────────────────────
-  // Backed by the real bookings.hold_expires_at set when seats were saved
-  // (see the seats route) — not a client-only timer, so refreshing this
-  // page doesn't reset the clock.
   const [msLeft, setMsLeft] = useState<number | null>(null)
 
   useEffect(() => {
@@ -270,9 +316,65 @@ export default function AddonsPage() {
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem(STORAGE_KEY)
-      if (!raw) { setLoadState("missing"); return }
+      if (!raw) {
+        // DEMO MODE FALLBACK for instant preview & inspection
+        if (typeof window !== "undefined" && window.location.search.includes("demo=1")) {
+          const mockSelection: CheckoutSelection = {
+            origin: "DEL",
+            destination: "BLR",
+            passengers: 1,
+            mode: "roundtrip",
+            totalPrice: 27000,
+            seatSelectionPrice: 28851,
+            savedAt: Date.now(),
+            bookingId: "demo-booking-addons-123",
+            holdExpiresAt: new Date(Date.now() + 14 * 60 * 1000 + 50 * 1000).toISOString(),
+            departFlight: {
+              id: "flight-del-blr-1",
+              flight_instance_id: "fi-del-blr-1",
+              airline: "Akasa Air",
+              origin: "DEL",
+              destination: "BLR",
+              departure_time: "21:15",
+              arrival_time: "00:00",
+              aircraft: "Boeing 737 MAX",
+              stops: 0,
+              final_price: 14500,
+              duration: "2h 45m",
+              travel_date: "2026-10-19",
+              flight_number: "QP-1382",
+            },
+            returnFlight: {
+              id: "flight-blr-del-2",
+              flight_instance_id: "fi-blr-del-2",
+              airline: "IndiGo",
+              origin: "BLR",
+              destination: "DEL",
+              departure_time: "13:15",
+              arrival_time: "17:45",
+              aircraft: "Airbus A320neo",
+              stops: 1,
+              final_price: 12500,
+              duration: "4h 30m",
+              travel_date: "2026-10-24",
+              flight_number: "6E-5204",
+            },
+          }
+          sessionStorage.setItem(STORAGE_KEY, JSON.stringify(mockSelection))
+          setSelection(mockSelection)
+          setLoadState("found")
+          return
+        }
+
+        setLoadState("missing")
+        return
+      }
+
       const parsed = JSON.parse(raw) as CheckoutSelection
-      if (!parsed.bookingId) { setLoadState("missing"); return }
+      if (!parsed.bookingId) {
+        setLoadState("missing")
+        return
+      }
       setSelection(parsed)
       setLoadState("found")
     } catch (err) {
@@ -289,9 +391,6 @@ export default function AddonsPage() {
       const remaining = expiresAt - Date.now()
       setMsLeft(remaining)
       if (remaining <= 0) {
-        // Hold lapsed — the seats aren't guaranteed anymore, send the
-        // traveler back to pick again rather than letting them pay for
-        // seats someone else may have since taken.
         router.push("/checkout/seats")
       }
     }
@@ -341,7 +440,12 @@ export default function AddonsPage() {
         STORAGE_KEY,
         JSON.stringify({
           ...selection,
-          addons: selectedList.map(({ addon, variant }) => ({ id: addon.id, title: addon.title, variant: variant.label, price: variant.price })),
+          addons: selectedList.map(({ addon, variant }) => ({
+            id: addon.id,
+            title: addon.title,
+            variant: variant.label,
+            price: variant.price,
+          })),
           addonsTotal,
         })
       )
@@ -362,36 +466,34 @@ export default function AddonsPage() {
         method: "DELETE",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
-
-      // ✅ FIX: the release above only touches the DB — sessionStorage
-      // still had the old holdExpiresAt / seatSelectionPrice, so hitting
-      // Back after editing landed back on this page still counting down a
-      // timer for seats that were already released. Strip both before
-      // navigating so a Back-navigation reads a selection with no stale
-      // hold info (HoldTimer only renders when holdExpiresAt is present).
       const { holdExpiresAt, seatSelectionPrice, ...rest } = selection
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(rest))
     } catch (err) {
       console.warn("Failed to release held seats before editing flight:", err)
-      // Navigate anyway — worst case the hold expires on its own in the
-      // usual 15 minutes; we don't want a failed release to trap the
-      // traveler on this page.
     }
     router.push(buildFlightSearchUrl(selection))
   }
 
   if (loadState === "loading") {
-    return <PageShell><CenteredMessage text="Preparing add-ons…" /></PageShell>
+    return (
+      <PageShell>
+        <CenteredMessage text="Loading custom flight enhancements…" />
+      </PageShell>
+    )
   }
 
   if (loadState === "missing" || !selection) {
     return (
       <PageShell>
-        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
-          <p className="text-slate-400">We couldn't find an active booking with seats selected.</p>
+        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 text-center px-4">
+          <div className="w-12 h-12 rounded-2xl bg-amber-400/10 border border-amber-400/25 flex items-center justify-center text-amber-400 mb-2">
+            <ShieldAlert className="w-6 h-6" />
+          </div>
+          <p className="text-slate-300 font-medium">We couldn't find an active booking session with seats reserved.</p>
+          <p className="text-sm text-slate-500 max-w-md">Please choose your seats first so we can hold your reservation while you select add-ons.</p>
           <button
             onClick={() => router.push("/checkout/seats")}
-            className="px-6 py-3 rounded-full pill-cta font-semibold"
+            className="mt-2 px-6 py-3 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-slate-950 font-bold hover:brightness-110 transition-all shadow-lg"
           >
             Go to Seat Selection
           </button>
@@ -410,43 +512,90 @@ export default function AddonsPage() {
 
   return (
     <PageShell selection={selection} router={router}>
-      {/* Mobile category chips — the vertical rail is desktop-only */}
+      {/* Mobile Category Chips */}
       <CategoryChips active={activeCategory} onChange={setActiveCategory} />
 
-      <div className={`flex items-center justify-between gap-4 mb-3 transition-all duration-500 ease-out ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-        <p className="text-[11px] uppercase tracking-widest text-slate-500">Your Itinerary</p>
+      {/* Itinerary Header & Hold Timer Bar */}
+      <div className={`flex items-center justify-between gap-4 mb-3.5 transition-all duration-500 ease-out ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]" />
+          <p className="text-xs font-semibold text-slate-300 tracking-wide">Confirmed Flight Itinerary</p>
+        </div>
         {msLeft !== null && <HoldTimer msLeft={msLeft} holdMinutes={HOLD_MINUTES} />}
       </div>
 
-      <div className={`transition-all duration-500 ease-out ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-        <FlightSummaryCard flight={departFlight} tag={isRoundTrip ? "Departure" : undefined} onEditFlight={handleEditFlight} />
-        {isRoundTrip && <div className="mt-3"><FlightSummaryCard flight={returnFlight} tag="Return" onEditFlight={handleEditFlight} /></div>}
+      {/* Luxury Flight Ticket Summary Cards */}
+      <div className={`space-y-3 transition-all duration-500 ease-out ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+        <FlightTicketSummaryCard
+          flight={departFlight}
+          tag={isRoundTrip ? "Departure Flight" : undefined}
+          isReturn={false}
+          onEditFlight={handleEditFlight}
+        />
+        {isRoundTrip && (
+          <FlightTicketSummaryCard
+            flight={returnFlight}
+            tag="Return Flight"
+            isReturn={true}
+            onEditFlight={handleEditFlight}
+          />
+        )}
       </div>
 
+      {/* Main Add-ons Layout: Rail + Grid + Summary */}
       <div className="grid grid-cols-12 gap-6 mt-6">
-        {/* Desktop category rail */}
-        <div className="hidden lg:block lg:col-span-2">
+        {/* Left Desktop Category Navigation Rail */}
+        <div className="hidden lg:block lg:col-span-3">
           <CategoryRail active={activeCategory} onChange={setActiveCategory} />
         </div>
 
-        <div className="col-span-12 lg:col-span-7 space-y-6">
-          <div className="relative bg-gradient-to-br from-[#0D1A2C] via-[#0B1729] to-[#0A1424] border border-[#D4AF37]/15 rounded-2xl p-6 flex items-center justify-between flex-wrap gap-4 ticket-edge overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-blue-400 via-amber-400 to-amber-300" />
-            <div className="pointer-events-none absolute -top-16 -right-10 w-56 h-56 bg-[#D4AF37]/[0.06] blur-[90px] rounded-full" aria-hidden />
-            <div className="relative">
-              <p className="font-display text-xl font-bold text-white">Make your journey more comfortable</p>
-              <p className="text-sm text-slate-500 mt-1">Choose add-ons to enhance your travel experience.</p>
-            </div>
-            <div className="relative flex items-center gap-3 rounded-xl border border-cyan-400/20 bg-cyan-400/[0.06] px-4 py-2.5">
-              <span aria-hidden>🎁</span>
-              <p className="text-xs text-cyan-200">Add more, save more — bundled add-ons come with a discount</p>
+        {/* Center Add-ons Catalog Section */}
+        <div className="col-span-12 lg:col-span-6 space-y-6">
+          {/* Calm, Elevated Offer Banner */}
+          <div className="relative bg-gradient-to-br from-[#0D1A2C] via-[#0B1729] to-[#0A1424] border border-white/[0.1] rounded-2xl p-5 sm:p-6 ticket-edge overflow-hidden shadow-lg">
+            <div className="pointer-events-none absolute -top-16 -right-10 w-56 h-56 bg-[#D4AF37]/[0.08] blur-[90px] rounded-full" aria-hidden />
+            
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300 bg-amber-400/10 border border-amber-400/25 px-2.5 py-0.5 rounded-full">
+                    Exclusive Flight Upgrades
+                  </span>
+                </div>
+                <h2 className="font-display text-lg sm:text-xl font-bold text-white tracking-tight">
+                  Make your journey more comfortable
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-md leading-relaxed">
+                  Tailor your flight with pre-booked baggage, chef-curated meals, and executive lounge access.
+                </p>
+              </div>
+
+              <div className="shrink-0 flex items-center gap-2.5 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-3.5 py-2.5 shadow-sm">
+                <span className="text-base" aria-hidden>🎁</span>
+                <div className="text-left">
+                  <p className="text-xs font-semibold text-amber-200">Bundle & Save</p>
+                  <p className="text-[11px] text-slate-400">Save up to 20% on pre-booked packages</p>
+                </div>
+              </div>
             </div>
           </div>
 
+          {/* Catalog Listing */}
           {activeCategory === "recommended" ? (
             <>
               <div>
-                <p className="font-display text-lg font-bold text-white mb-3">Recommended For You</p>
+                <div className="flex items-center justify-between mb-3.5">
+                  <div>
+                    <h3 className="font-display text-base sm:text-lg font-bold text-white tracking-tight">
+                      Recommended Enhancements
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">Popular comfort additions chosen by Navigo travelers</p>
+                  </div>
+                  <span className="text-xs font-medium text-amber-400 bg-amber-400/10 px-2.5 py-1 rounded-full border border-amber-400/20">
+                    4 curated options
+                  </span>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {activeRecommendedAddons.map((addon) => (
                     <AddonCard
@@ -461,32 +610,41 @@ export default function AddonsPage() {
                 </div>
               </div>
 
-              <div>
-                <p className="font-display text-lg font-bold text-white mb-3">More Add-ons For You</p>
-                <div className="relative -mx-6 px-6">
-                  <div className="flex gap-3.5 overflow-x-auto pb-1 no-scrollbar snap-x snap-mandatory">
-                    {activeMoreAddons.map((addon) => (
-                      <div key={addon.id} className="w-[200px] sm:w-[212px] shrink-0 snap-start">
-                        <AddonMiniCard
-                          addon={addon}
-                          isSelected={addon.id in chosen}
-                          onToggle={() => toggleAddon(addon, 0)}
-                        />
-                      </div>
-                    ))}
+              {/* More Add-ons Horizontal Row */}
+              <div className="pt-2">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h3 className="font-display text-base font-bold text-white tracking-tight">
+                      Additional Travel Perks
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">Quick additions for seamless transit</p>
                   </div>
-                  {/* fade hint that more cards continue off-screen */}
-                  <div className="pointer-events-none absolute top-0 bottom-1 right-6 w-10 bg-gradient-to-l from-[#060B14] to-transparent" aria-hidden />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {activeMoreAddons.map((addon) => (
+                    <AddonCard
+                      key={addon.id}
+                      addon={addon}
+                      isSelected={addon.id in chosen}
+                      variantIndex={chosen[addon.id] ?? 0}
+                      onToggle={(vi) => toggleAddon(addon, vi)}
+                      onVariantChange={(vi) => setVariant(addon.id, vi)}
+                    />
+                  ))}
                 </div>
               </div>
             </>
           ) : (
             <div>
-              <p className="font-display text-lg font-bold text-white">{activeCategoryMeta.label}</p>
-              <p className="text-sm text-slate-500 mb-3">{activeCategoryMeta.sub}</p>
+              <div className="mb-4">
+                <h3 className="font-display text-lg font-bold text-white tracking-tight">{activeCategoryMeta.label}</h3>
+                <p className="text-xs text-slate-400 mt-0.5">{activeCategoryMeta.sub}</p>
+              </div>
+
               {categoryAddons.length === 0 ? (
-                <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-10 text-center text-sm text-slate-500">
-                  No add-ons in this category for your flight.
+                <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-12 text-center text-sm text-slate-400">
+                  No add-on packages available in this specific category for this route.
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -505,26 +663,39 @@ export default function AddonsPage() {
             </div>
           )}
 
-          <p className="text-xs text-slate-500 flex items-center gap-1.5">
-            <span aria-hidden>ⓘ</span> Add-ons can be added up to 3 hours before departure.
-          </p>
-
-          <div className="flex items-center justify-between flex-wrap gap-4 pt-2 text-xs text-slate-500 border-t border-white/[0.06]">
-            <div className="flex items-center gap-2">
-              <span className="w-8 h-8 rounded-full bg-emerald-400/10 border border-emerald-400/20 flex items-center justify-center">🛡️</span>
-              <div><p className="text-slate-300 font-medium">100% Safe Booking</p><p>Secure payments. Zero worries.</p></div>
+          {/* Reassurance Footer Badges */}
+          <div className="pt-4 border-t border-white/[0.06] flex items-center justify-between flex-wrap gap-4 text-xs text-slate-400">
+            <div className="flex items-center gap-2.5">
+              <span className="w-8 h-8 rounded-xl bg-emerald-400/10 border border-emerald-400/20 flex items-center justify-center text-emerald-400">
+                <ShieldCheck className="w-4 h-4" />
+              </span>
+              <div>
+                <p className="text-slate-200 font-semibold">100% Guaranteed Booking</p>
+                <p className="text-[11px] text-slate-400">Direct airline fulfillment</p>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-8 h-8 rounded-full bg-cyan-400/10 border border-cyan-400/20 flex items-center justify-center">↻</span>
-              <div><p className="text-slate-300 font-medium">Flexible Changes</p><p>Modify or cancel with ease.</p></div>
+            <div className="flex items-center gap-2.5">
+              <span className="w-8 h-8 rounded-xl bg-cyan-400/10 border border-cyan-400/20 flex items-center justify-center text-cyan-400">
+                <RotateCcw className="w-4 h-4" />
+              </span>
+              <div>
+                <p className="text-slate-200 font-semibold">Flexible Modifications</p>
+                <p className="text-[11px] text-slate-400">Change up to 3h before flight</p>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-8 h-8 rounded-full bg-amber-400/10 border border-amber-400/20 flex items-center justify-center">💬</span>
-              <div><p className="text-slate-300 font-medium">24/7 Support</p><p>We're here to help anytime.</p></div>
+            <div className="flex items-center gap-2.5">
+              <span className="w-8 h-8 rounded-xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center text-amber-400">
+                <Headphones className="w-4 h-4" />
+              </span>
+              <div>
+                <p className="text-slate-200 font-semibold">24/7 Priority Concierge</p>
+                <p className="text-[11px] text-slate-400">Instant flight assistant</p>
+              </div>
             </div>
           </div>
         </div>
 
+        {/* Right Sticky Trip Summary Sidebar */}
         <div className="col-span-12 lg:col-span-3">
           <TripSummary
             selection={selection}
@@ -537,7 +708,13 @@ export default function AddonsPage() {
             tripTotal={tripTotal}
             open={summaryOpen}
             onToggleOpen={() => setSummaryOpen((v) => !v)}
-            onRemoveAddon={(id) => setChosen((prev) => { const next = { ...prev }; delete next[id]; return next })}
+            onRemoveAddon={(id) =>
+              setChosen((prev) => {
+                const next = { ...prev }
+                delete next[id]
+                return next
+              })
+            }
             onContinue={handleContinue}
           />
         </div>
@@ -547,9 +724,7 @@ export default function AddonsPage() {
 }
 
 // ---------------------------------------------------------------------------
-// HoldTimer — compact radial-gauge pill instead of a full-width banner.
-// Depletes gold → rose as the hold runs down; the ring itself carries the
-// urgency instead of a big stretched block of color across the page.
+// HoldTimer — Aerospace pill with radial countdown and calm typography
 // ---------------------------------------------------------------------------
 
 function HoldTimer({ msLeft, holdMinutes }: { msLeft: number; holdMinutes: number }) {
@@ -558,63 +733,85 @@ function HoldTimer({ msLeft, holdMinutes }: { msLeft: number; holdMinutes: numbe
   const ss = totalSeconds % 60
   const urgent = totalSeconds <= 120
 
-  const radius = 14
+  const radius = 13
   const circumference = 2 * Math.PI * radius
   const pct = Math.min(1, Math.max(0, totalSeconds / (holdMinutes * 60)))
   const dashOffset = circumference * (1 - pct)
 
   return (
     <div
-      className={`inline-flex items-center gap-2.5 rounded-full border pl-2 pr-4 py-1.5 transition-colors ${
-        urgent ? "border-rose-400/40 bg-rose-400/[0.08] hold-timer-urgent" : "border-amber-400/25 bg-amber-400/[0.06]"
+      className={`inline-flex items-center gap-2.5 rounded-full border pl-2.5 pr-4 py-1.5 transition-all shadow-sm ${
+        urgent
+          ? "border-rose-400/40 bg-rose-500/[0.1] text-rose-200"
+          : "border-amber-400/30 bg-[#0E1A2C]/90 text-amber-100"
       }`}
       role="timer"
       aria-live="polite"
     >
-      <svg width="32" height="32" viewBox="0 0 32 32" className="shrink-0 -rotate-90" aria-hidden>
-        <circle cx="16" cy="16" r={radius} fill="none" stroke="currentColor" strokeWidth="3" className="text-white/10" />
+      <svg width="30" height="30" viewBox="0 0 30 30" className="shrink-0 -rotate-90" aria-hidden>
+        <circle cx="15" cy="15" r={radius} fill="none" stroke="currentColor" strokeWidth="2.5" className="text-white/10" />
         <circle
-          cx="16" cy="16" r={radius} fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"
+          cx="15"
+          cy="15"
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={dashOffset}
-          className={`transition-[stroke-dashoffset] duration-1000 ease-linear ${urgent ? "text-rose-300" : "text-amber-300"}`}
+          className={`transition-[stroke-dashoffset] duration-1000 ease-linear ${urgent ? "text-rose-400" : "text-amber-400"}`}
         />
       </svg>
-      <div className="leading-tight">
-        <p className={`font-display text-sm font-bold tabular-nums ${urgent ? "text-rose-200" : "text-amber-100"}`}>
+      <div className="flex items-baseline gap-1.5 leading-none">
+        <span className="text-[11px] text-slate-400 font-medium">Seats held:</span>
+        <span className={`font-display text-sm font-bold tabular-nums ${urgent ? "text-rose-300 font-extrabold" : "text-amber-300"}`}>
           {mm}:{ss.toString().padStart(2, "0")}
-        </p>
-        <p className="text-[10px] text-slate-500 -mt-0.5">seats held</p>
+        </span>
       </div>
     </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// CategoryRail (desktop) / CategoryChips (mobile) — left-nav browse by
-// category, same data source so both stay in sync.
+// CategoryRail (desktop) & CategoryChips (mobile)
 // ---------------------------------------------------------------------------
 
 function CategoryRail({ active, onChange }: { active: CategoryId; onChange: (id: CategoryId) => void }) {
   return (
-    <div className="sticky top-24 space-y-1.5">
+    <div className="sticky top-24 space-y-1.5 bg-[#0C1729]/80 border border-white/[0.08] rounded-2xl p-2.5 backdrop-blur-md shadow-lg">
+      <div className="px-3 pt-2 pb-2 border-b border-white/[0.06] mb-1">
+        <p className="text-xs font-bold text-white tracking-tight">Categories</p>
+        <p className="text-[11px] text-slate-400">Filter flight services</p>
+      </div>
+
       {CATEGORIES.map((cat) => {
         const isActive = active === cat.id
+        const Icon = cat.icon
         return (
           <button
             key={cat.id}
             onClick={() => onChange(cat.id)}
-            className={`w-full flex items-start gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all ${
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left transition-all cursor-pointer ${
               isActive
-                ? "border-[#D4AF37]/50 bg-[#D4AF37]/[0.08] text-white"
-                : "border-transparent text-slate-400 hover:bg-white/[0.03] hover:text-slate-200"
+                ? "bg-gradient-to-r from-amber-400/[0.14] to-transparent border border-amber-400/40 text-white shadow-sm"
+                : "border border-transparent text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
             }`}
           >
-            <span className={`mt-0.5 shrink-0 ${isActive ? "text-[#E8C766]" : "text-slate-500"}`}>{cat.icon}</span>
-            <span className="min-w-0">
-              <span className={`block text-[13px] font-semibold truncate ${isActive ? "text-white" : "text-slate-300"}`}>{cat.label}</span>
+            <div
+              className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                isActive ? "bg-amber-400 text-slate-950 font-bold" : "bg-white/[0.05] text-slate-400"
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <span className={`block text-xs font-semibold truncate ${isActive ? "text-white" : "text-slate-300"}`}>
+                {cat.label}
+              </span>
               <span className="block text-[10.5px] text-slate-500 truncate">{cat.sub}</span>
-            </span>
+            </div>
+            {isActive && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />}
           </button>
         )
       })}
@@ -624,19 +821,22 @@ function CategoryRail({ active, onChange }: { active: CategoryId; onChange: (id:
 
 function CategoryChips({ active, onChange }: { active: CategoryId; onChange: (id: CategoryId) => void }) {
   return (
-    <div className="lg:hidden -mx-6 px-6 mb-4 overflow-x-auto">
-      <div className="flex items-center gap-2 w-max">
+    <div className="lg:hidden -mx-6 px-6 mb-4 overflow-x-auto no-scrollbar">
+      <div className="flex items-center gap-2 w-max py-1">
         {CATEGORIES.map((cat) => {
           const isActive = active === cat.id
+          const Icon = cat.icon
           return (
             <button
               key={cat.id}
               onClick={() => onChange(cat.id)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-full border text-xs font-medium whitespace-nowrap transition-colors ${
-                isActive ? "border-[#D4AF37]/50 bg-[#D4AF37]/[0.1] text-[#E8C766]" : "border-white/[0.08] bg-white/[0.02] text-slate-400"
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-full border text-xs font-medium whitespace-nowrap transition-all ${
+                isActive
+                  ? "border-amber-400/60 bg-amber-400/15 text-amber-200 shadow-sm"
+                  : "border-white/[0.08] bg-white/[0.03] text-slate-400 hover:text-white"
               }`}
             >
-              <span className="shrink-0">{cat.icon}</span>
+              <Icon className="w-3.5 h-3.5 shrink-0" />
               {cat.label}
             </button>
           )
@@ -647,98 +847,193 @@ function CategoryChips({ active, onChange }: { active: CategoryId; onChange: (id
 }
 
 // ---------------------------------------------------------------------------
-// AddonHero — real photo when available, graceful icon-illustration
-// fallback when not (missing path or 404). Drop files into /public/addons/
-// (baggage.jpg, legroom.jpg, meal.jpg, lounge.jpg, priority.jpg,
-// insurance.jpg, wifi.jpg, fasttrack.jpg) and they appear automatically —
-// nothing else to wire up. `compact` shrinks the hero for the smaller
-// "More Add-ons" grid without duplicating the component.
+// AddonHeroVisual — Rich ambient themed graphic for each add-on type
 // ---------------------------------------------------------------------------
 
-function AddonHero({ addon, compact = false }: { addon: Addon; compact?: boolean }) {
-  const [imgFailed, setImgFailed] = useState(false)
-  const showImage = !!addon.image && !imgFailed
+function AddonHeroVisual({ type, discountPct }: { type: Addon["iconType"]; discountPct?: number }) {
+  const getVisual = () => {
+    switch (type) {
+      case "baggage":
+        return {
+          icon: <Luggage className="w-8 h-8 text-amber-300" />,
+          accent: "from-amber-500/20 via-amber-400/5 to-transparent",
+          aura: "bg-amber-400/20",
+          tag: "Check-in Luggage",
+        }
+      case "legroom":
+        return {
+          icon: <Armchair className="w-8 h-8 text-cyan-300" />,
+          accent: "from-cyan-500/20 via-cyan-400/5 to-transparent",
+          aura: "bg-cyan-400/20",
+          tag: "Cabin Comfort",
+        }
+      case "meal":
+        return {
+          icon: <Utensils className="w-8 h-8 text-emerald-300" />,
+          accent: "from-emerald-500/20 via-emerald-400/5 to-transparent",
+          aura: "bg-emerald-400/20",
+          tag: "Gourmet Dining",
+        }
+      case "lounge":
+        return {
+          icon: <Coffee className="w-8 h-8 text-amber-300" />,
+          accent: "from-amber-500/25 via-amber-400/10 to-transparent",
+          aura: "bg-amber-400/25",
+          tag: "VIP Access",
+        }
+      case "priority":
+        return {
+          icon: <Plane className="w-8 h-8 text-blue-300" />,
+          accent: "from-blue-500/20 via-blue-400/5 to-transparent",
+          aura: "bg-blue-400/20",
+          tag: "Fast Boarding",
+        }
+      case "insurance":
+        return {
+          icon: <ShieldCheck className="w-8 h-8 text-teal-300" />,
+          accent: "from-teal-500/20 via-teal-400/5 to-transparent",
+          aura: "bg-teal-400/20",
+          tag: "Full Protection",
+        }
+      case "wifi":
+        return {
+          icon: <Wifi className="w-8 h-8 text-sky-300" />,
+          accent: "from-sky-500/20 via-sky-400/5 to-transparent",
+          aura: "bg-sky-400/20",
+          tag: "Satellite Link",
+        }
+      case "fasttrack":
+        return {
+          icon: <Zap className="w-8 h-8 text-yellow-300" />,
+          accent: "from-yellow-500/20 via-yellow-400/5 to-transparent",
+          aura: "bg-yellow-400/20",
+          tag: "Express Lane",
+        }
+    }
+  }
+
+  const v = getVisual()
 
   return (
-    <div className={`relative overflow-hidden bg-gradient-to-br from-[#0D1A2C] to-[#0A1424] ${compact ? "h-16" : "h-28"}`}>
-      {showImage ? (
-        <img
-          src={addon.image}
-          alt=""
-          onError={() => setImgFailed(true)}
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-      ) : (
-        <>
-          <div className="pointer-events-none absolute inset-0 opacity-70 bg-[radial-gradient(circle_at_50%_35%,rgba(212,175,55,0.16),transparent_65%)]" aria-hidden />
-          <div className={`absolute inset-0 flex items-center justify-center ${compact ? "text-2xl" : "text-4xl"}`}>{addon.icon}</div>
-        </>
+    <div className={`relative h-28 overflow-hidden bg-gradient-to-br ${v.accent} border-b border-white/[0.06] flex items-center justify-center`}>
+      <div className={`pointer-events-none absolute w-24 h-24 ${v.aura} blur-[36px] rounded-full`} />
+      
+      {/* Discount Pill */}
+      {discountPct && (
+        <span className="absolute top-3 left-3 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 z-10 shadow-sm">
+          Save {discountPct}%
+        </span>
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#0A1424] via-transparent to-transparent" />
+
+      {/* Tag Badge */}
+      <span className="absolute top-3 right-3 text-[10px] font-medium text-slate-400 bg-white/[0.05] border border-white/[0.08] px-2 py-0.5 rounded-md">
+        {v.tag}
+      </span>
+
+      {/* Main Center Icon Tile */}
+      <div className="relative w-14 h-14 rounded-2xl bg-white/[0.06] border border-white/[0.12] flex items-center justify-center shadow-[0_8px_24px_rgba(0,0,0,0.3)] backdrop-blur-md">
+        {v.icon}
+      </div>
     </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// AddonCard — recommended / category-browse row. Variant picker is a gold
-// segmented control (matches the cabin-class rail on the seats page)
-// instead of a bare native <select>.
+// AddonCard — Polished, spacious, calm luxury card
 // ---------------------------------------------------------------------------
 
-function AddonCard({ addon, isSelected, variantIndex, onToggle, onVariantChange }: {
-  addon: Addon; isSelected: boolean; variantIndex: number
-  onToggle: (variantIndex: number) => void; onVariantChange: (variantIndex: number) => void
+function AddonCard({
+  addon,
+  isSelected,
+  variantIndex,
+  onToggle,
+  onVariantChange,
+}: {
+  addon: Addon
+  isSelected: boolean
+  variantIndex: number
+  onToggle: (variantIndex: number) => void
+  onVariantChange: (variantIndex: number) => void
 }) {
-  const variant = addon.variants[variantIndex]
-  return (
-    <div className={`group relative rounded-2xl border overflow-hidden transition-all duration-300 ticket-edge ${
-      isSelected ? "border-[#D4AF37]/50 bg-[#D4AF37]/[0.06] shadow-[0_0_24px_rgba(212,175,55,0.15)]" : "border-white/[0.08] bg-white/[0.02] hover:border-amber-400/30 hover:bg-white/[0.04]"
-    }`}>
-      {isSelected && <div className="top-accent-line" />}
-      {addon.discountPct && (
-        <span className="absolute top-3 left-3 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-emerald-400/15 text-emerald-300 border border-emerald-400/25 z-10">
-          {addon.discountPct}% OFF
-        </span>
-      )}
-      <AddonHero addon={addon} />
-      <div className="p-4">
-        <p className="font-semibold text-white text-sm">{addon.title}</p>
-        <p className="text-xs text-slate-500 mt-0.5 mb-3">{addon.desc}</p>
+  const variant = addon.variants[variantIndex] || addon.variants[0]
 
-        <div className="flex items-center justify-between gap-2">
-          {addon.variants.length > 1 ? (
-            <div className="flex items-center gap-0.5 rounded-lg bg-white/[0.04] border border-white/[0.08] p-0.5">
-              {addon.variants.map((v, i) => (
-                <button
-                  key={v.label}
-                  type="button"
-                  onClick={() => onVariantChange(i)}
-                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
-                    i === variantIndex ? "bg-[#D4AF37]/20 text-[#E8C766]" : "text-slate-500 hover:text-slate-300"
-                  }`}
-                >
-                  {v.label}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <span className="text-xs text-slate-400">{variant.label}</span>
-          )}
-          <div className="flex items-center gap-1.5 shrink-0">
-            {variant.originalPrice && (
-              <span className="text-xs text-slate-600 line-through tabular-nums">{formatINR(variant.originalPrice)}</span>
+  return (
+    <div
+      className={`group relative rounded-2xl border overflow-hidden transition-all duration-300 ticket-edge flex flex-col justify-between ${
+        isSelected
+          ? "border-amber-400/60 bg-[#0E1A2C]/90 shadow-[0_0_28px_rgba(212,175,55,0.16)] ring-1 ring-amber-400/30"
+          : "border-white/[0.08] bg-[#0A1424]/80 hover:border-white/20 hover:bg-[#0D192C]/80"
+      }`}
+    >
+      <div>
+        <AddonHeroVisual type={addon.iconType} discountPct={addon.discountPct} />
+        
+        <div className="p-4 sm:p-5">
+          <h4 className="font-display font-bold text-white text-sm sm:text-base tracking-tight">
+            {addon.title}
+          </h4>
+          <p className="text-xs text-slate-400 mt-1 mb-4 leading-relaxed line-clamp-2">
+            {addon.desc}
+          </p>
+
+          {/* Variant Selector & Price Area */}
+          <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/[0.06]">
+            {addon.variants.length > 1 ? (
+              <div className="flex items-center gap-1 rounded-xl bg-white/[0.04] border border-white/[0.08] p-1">
+                {addon.variants.map((v, i) => (
+                  <button
+                    key={v.label}
+                    type="button"
+                    onClick={() => onVariantChange(i)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      i === variantIndex
+                        ? "bg-amber-400 text-slate-950 shadow-sm"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <span className="text-xs text-slate-400 font-medium">{variant.label}</span>
             )}
-            <span className="font-board text-sm font-bold text-[#E8C766] tabular-nums">{formatINR(variant.price)}</span>
+
+            <div className="flex items-baseline gap-1.5 shrink-0 text-right">
+              {variant.originalPrice && (
+                <span className="text-xs text-slate-500 line-through tabular-nums">
+                  {formatINR(variant.originalPrice)}
+                </span>
+              )}
+              <span className="font-display text-base font-extrabold text-amber-300 tabular-nums">
+                {formatINR(variant.price)}
+              </span>
+            </div>
           </div>
         </div>
+      </div>
 
+      {/* Action CTA Button */}
+      <div className="px-4 pb-4 sm:px-5 sm:pb-5 pt-0">
         <button
+          type="button"
           onClick={() => onToggle(variantIndex)}
-          className={`mt-3 w-full py-2 rounded-lg text-sm font-semibold transition-all ${
-            isSelected ? "bg-white/[0.06] text-amber-300 border border-amber-300/40" : "pill-cta"
+          className={`w-full py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            isSelected
+              ? "bg-emerald-500/15 text-emerald-300 border border-emerald-400/40 hover:bg-emerald-500/20"
+              : "bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-slate-950 hover:brightness-110 shadow-md"
           }`}
         >
-          {isSelected ? "Added ✓" : "+ Add"}
+          {isSelected ? (
+            <>
+              <Check className="w-4 h-4 text-emerald-400 stroke-[3]" />
+              <span>Added to Booking</span>
+            </>
+          ) : (
+            <>
+              <span>+ Add to Booking</span>
+            </>
+          )}
         </button>
       </div>
     </div>
@@ -746,88 +1041,129 @@ function AddonCard({ addon, isSelected, variantIndex, onToggle, onVariantChange 
 }
 
 // ---------------------------------------------------------------------------
-// AddonMiniCard — the smaller "More Add-ons" row. ✅ UI FIX: now reuses the
-// same AddonHero illustration used by the recommended cards (compact size)
-// instead of a flat icon-in-a-box, so this section reads as the same
-// product as "Recommended For You" above it rather than a plain fallback
-// list. Add button also switched to the shared `pill-cta` gradient so the
-// call-to-action matches everywhere else on the page.
+// FlightTicketSummaryCard — Boarding Pass Ticket architecture matching Seats
 // ---------------------------------------------------------------------------
 
-function AddonMiniCard({ addon, isSelected, onToggle }: { addon: Addon; isSelected: boolean; onToggle: () => void }) {
-  const variant = addon.variants[0]
+function FlightTicketSummaryCard({
+  flight,
+  tag,
+  isReturn,
+  onEditFlight,
+}: {
+  flight: StoredFlight
+  tag?: string
+  isReturn: boolean
+  onEditFlight?: () => void
+}) {
+  const logo = airlineLogos[flight.airline] || "/airlines/default.png"
+  const originCity = CITY_NAMES[flight.origin] || flight.origin
+  const destCity = CITY_NAMES[flight.destination] || flight.destination
+  const flightNum = flight.flight_number || "NAV-420"
+
   return (
-    <div className={`rounded-xl border overflow-hidden transition-all duration-200 ${
-      isSelected ? "border-amber-400/50 bg-amber-400/[0.06]" : "border-white/[0.08] bg-white/[0.02] hover:border-white/20 hover:-translate-y-0.5"
-    }`}>
-      <AddonHero addon={addon} compact />
-      <div className="p-3">
-        <p className="text-xs font-semibold text-white truncate">{addon.title}</p>
-        <p className="text-[11px] text-slate-500 mt-0.5 mb-2.5 leading-snug line-clamp-2">{addon.desc}</p>
-        <div className="flex items-center justify-between gap-2">
-          <span className="font-display text-xs font-bold text-amber-300 tabular-nums shrink-0">{formatINR(variant.price)}</span>
-          <button
-            onClick={onToggle}
-            className={`text-[11px] px-2.5 py-1.5 rounded-full font-semibold transition-colors shrink-0 ${
-              isSelected ? "bg-white/[0.06] text-amber-300 border border-amber-300/40" : "pill-cta"
-            }`}
-          >
-            {isSelected ? "Added ✓" : "+ Add"}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
+    <div className="relative bg-gradient-to-r from-[#0C1729]/95 via-[#0E1C33]/95 to-[#091220]/95 border border-white/[0.12] rounded-2xl p-4 sm:px-6 sm:py-3.5 shadow-md backdrop-blur-xl ticket-edge overflow-hidden">
+      {/* Signature Livery Strip */}
+      <div
+        className={`absolute top-0 bottom-0 left-0 w-1.5 bg-gradient-to-b ${
+          isReturn ? "from-cyan-400 via-blue-500 to-indigo-500" : "from-amber-300 via-amber-400 to-amber-600"
+        }`}
+      />
 
-// ---------------------------------------------------------------------------
-// FlightSummaryCard
-// ---------------------------------------------------------------------------
-
-function FlightSummaryCard({ flight, tag, onEditFlight }: { flight: StoredFlight; tag?: "Departure" | "Return"; onEditFlight?: () => void }) {
-  return (
-    <div className="relative bg-gradient-to-br from-[#0D1A2C] via-[#0B1729] to-[#0A1424] border border-white/[0.08] rounded-2xl overflow-hidden ticket-edge">
-      <div className={`absolute top-0 left-0 right-0 h-[2px] ${tag === "Return" ? "bg-gradient-to-r from-cyan-400 to-blue-400" : "bg-gradient-to-r from-amber-300 to-amber-500"}`} />
-      <div className="flex items-center justify-between px-6 py-4 flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center overflow-hidden shadow-sm ring-1 ring-black/5 shrink-0">
-            <img src={airlineLogos[flight.airline] || "/airlines/default.png"} alt={flight.airline} className="w-7 h-7 object-contain" />
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        {/* Left: Airline Branding & Aircraft */}
+        <div className="flex items-center gap-3 min-w-[200px]">
+          <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center overflow-hidden shadow-sm ring-1 ring-white/10 shrink-0 p-1">
+            <img src={logo} alt={flight.airline} className="w-7 h-7 object-contain" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              {tag && (
-                <span className={`text-[10px] uppercase tracking-wide font-semibold rounded px-1.5 py-0.5 border ${tag === "Departure" ? "text-amber-300 bg-amber-400/10 border-amber-400/20" : "text-cyan-300 bg-cyan-400/10 border-cyan-400/20"}`}>{tag}</span>
-              )}
-              <p className="font-semibold text-[15px]">{flight.airline}</p>
+              <p className="font-display font-bold text-sm sm:text-base text-white tracking-tight">{flight.airline}</p>
+              <span className="font-mono text-[10px] font-bold text-slate-300 bg-white/[0.06] px-1.5 py-0.5 rounded border border-white/[0.08]">
+                {flightNum}
+              </span>
             </div>
-            <p className="text-xs text-slate-500">{flight.aircraft} · Economy Class</p>
+            <p className="text-[11px] text-slate-400 font-medium">
+              {flight.aircraft} <span className="text-slate-600">•</span> Economy Class
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-6">
-          <div className="text-right">
-            <p className="font-display text-xl font-extrabold tabular-nums">{formatTime(flight.departure_time)}</p>
-            <p className="text-[11px] text-slate-500">{flight.origin}</p>
-          </div>
-          <div className="flex flex-col items-center w-24">
-            <p className="text-[10px] text-slate-400">{flight.duration || "--"}</p>
-            <div className="w-full flex items-center gap-1 mt-1">
-              <span className="w-1 h-1 rounded-full bg-amber-300 shrink-0" />
-              <div className="flex-1 h-px bg-gradient-to-r from-amber-300/60 via-slate-600/40 to-cyan-300/60" />
-              <span aria-hidden className="text-amber-300 text-xs -mx-1">✈</span>
-              <div className="flex-1 h-px bg-gradient-to-r from-amber-300/60 via-slate-600/40 to-cyan-300/60" />
-              <span className="w-1 h-1 rounded-full bg-cyan-300 shrink-0" />
+
+        {/* Center: Flight Vector Telemetry */}
+        <div className="flex items-center gap-4 sm:gap-6 flex-1 justify-center max-w-xl">
+          {/* Origin */}
+          <div className="text-left shrink-0">
+            <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+              {originCity}
+            </p>
+            <div className="flex items-baseline gap-1 mt-0.5">
+              <span className="font-display text-lg sm:text-xl font-bold text-white tabular-nums">
+                {flight.origin}
+              </span>
+              <span className="text-xs sm:text-sm font-semibold text-slate-300 tabular-nums">
+                {formatTime(flight.departure_time)}
+              </span>
             </div>
-            <p className="text-[10px] text-slate-500 mt-1">{flight.stops ? `${flight.stops} stop` : "Non-stop"}</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">
+              {formatDateLabel(flight.travel_date)}
+            </p>
           </div>
-          <div>
-            <p className="font-display text-xl font-extrabold tabular-nums">{formatTime(flight.arrival_time)}</p>
-            <p className="text-[11px] text-slate-500">{flight.destination}</p>
+
+          {/* Timeline Vector */}
+          <div className="flex flex-col items-center flex-1 max-w-[180px] px-2">
+            <span className="text-[10.5px] text-slate-300 font-bold mb-1 font-mono">
+              {flight.duration || "2h 45m"}
+            </span>
+            <div className="flex items-center w-full max-w-[150px] gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 ring-2 ring-cyan-400/20 shrink-0" />
+              <div className="h-[2px] flex-1 bg-gradient-to-r from-cyan-400/60 via-amber-400/80 to-amber-400/60 rounded-full" />
+              <span aria-hidden className="text-amber-300 text-xs shrink-0 select-none">✈</span>
+              <div className="h-[2px] flex-1 bg-gradient-to-r from-amber-400/60 via-emerald-400/80 to-emerald-400/60 rounded-full" />
+              <span className="w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/20 shrink-0" />
+            </div>
+            <span className="text-[9.5px] text-emerald-400 font-semibold mt-1 uppercase tracking-wide">
+              {(flight.stops ?? 0) > 0 ? `${flight.stops} Stop` : "Non-stop"}
+            </span>
           </div>
+
+          {/* Destination */}
+          <div className="text-right shrink-0">
+            <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+              {destCity}
+            </p>
+            <div className="flex items-baseline justify-end gap-1 mt-0.5">
+              <span className="font-display text-lg sm:text-xl font-bold text-white tabular-nums">
+                {flight.destination}
+              </span>
+              <span className="text-xs sm:text-sm font-semibold text-slate-300 tabular-nums">
+                {formatTime(flight.arrival_time)}
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-400 mt-0.5">
+              {formatDateLabel(flight.travel_date)}
+            </p>
+          </div>
+        </div>
+
+        {/* Right: Tag and Edit CTA */}
+        <div className="flex items-center gap-2.5 ml-auto">
+          {tag && (
+            <span
+              className={`text-[10px] uppercase tracking-wider font-bold rounded-full px-3 py-1 border flex items-center gap-1.5 ${
+                isReturn
+                  ? "text-cyan-300 bg-cyan-400/15 border-cyan-400/30"
+                  : "text-amber-300 bg-amber-400/15 border-amber-400/30"
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${isReturn ? "bg-cyan-400" : "bg-amber-400"}`} />
+              {tag}
+            </span>
+          )}
           <button
             onClick={onEditFlight}
-            className="text-xs text-cyan-300 hover:text-cyan-200 transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
+            className="text-xs text-slate-300 hover:text-white transition-all flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 hover:border-amber-400/40 bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer"
           >
-            <span aria-hidden>✎</span> Edit Flight
+            <span>Edit flight</span>
+            <Edit3 className="w-3 h-3 text-amber-400" />
           </button>
         </div>
       </div>
@@ -836,16 +1172,13 @@ function FlightSummaryCard({ flight, tag, onEditFlight }: { flight: StoredFlight
 }
 
 // ---------------------------------------------------------------------------
-// PerforatedDivider — same punch-hole boarding-pass motif used on the seats
-// and payment pages, dropped in here (in place of a plain dashed border) so
-// this sidebar finally reads as the same object across all three checkout
-// pages instead of using three slightly different card styles.
+// PerforatedDivider — Boarding Pass notch motif
 // ---------------------------------------------------------------------------
 
 function PerforatedDivider() {
   return (
-    <div className="relative px-5">
-      <div className="border-t border-dashed border-[#D4AF37]/20" />
+    <div className="relative px-5 my-1">
+      <div className="border-t border-dashed border-white/[0.12]" />
       <span className="absolute -left-3 -top-3 w-6 h-6 rounded-full bg-[#060B14]" />
       <span className="absolute -right-3 -top-3 w-6 h-6 rounded-full bg-[#060B14]" />
     </div>
@@ -853,104 +1186,164 @@ function PerforatedDivider() {
 }
 
 // ---------------------------------------------------------------------------
-// TripSummary — ✅ UI FIX: fare sub-lines demoted (smaller, muted) and
-// "Trip Total" promoted into its own blue-tinted highlight panel, matching
-// the "Amount to Pay" treatment on the payment page, instead of being just
-// another row barely more prominent than "Base Fare" above it. Divider
-// between sections switched to PerforatedDivider to match.
+// TripSummary — Elevated Sidebar with Rolling Price Counter & Clean Layout
 // ---------------------------------------------------------------------------
 
-function TripSummary({ selection, baseFare, taxesAndFees, seatSelectionPrice, selectedList, addonsTotal, addonsSavings, tripTotal, open, onToggleOpen, onRemoveAddon, onContinue }: {
+function TripSummary({
+  selection,
+  baseFare,
+  taxesAndFees,
+  seatSelectionPrice,
+  selectedList,
+  addonsTotal,
+  addonsSavings,
+  tripTotal,
+  open,
+  onToggleOpen,
+  onRemoveAddon,
+  onContinue,
+}: {
   selection: CheckoutSelection
-  baseFare: number; taxesAndFees: number; seatSelectionPrice: number
+  baseFare: number
+  taxesAndFees: number
+  seatSelectionPrice: number
   selectedList: { addon: Addon; variant: AddonVariant }[]
-  addonsTotal: number; addonsSavings: number; tripTotal: number
-  open: boolean; onToggleOpen: () => void
+  addonsTotal: number
+  addonsSavings: number
+  tripTotal: number
+  open: boolean
+  onToggleOpen: () => void
   onRemoveAddon: (id: string) => void
   onContinue: () => void
 }) {
   return (
     <div className="sticky top-24 space-y-4">
-      <div className="relative bg-gradient-to-b from-[#0D1A2C] to-[#0A1424] border border-[#D4AF37]/15 rounded-2xl overflow-hidden ticket-edge">
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-blue-400 via-amber-400 to-amber-300" />
+      <div className="relative bg-gradient-to-b from-[#0C1729]/98 via-[#0E1C33]/98 to-[#091220]/98 border border-white/[0.12] rounded-2xl overflow-hidden shadow-xl ticket-edge">
+        {/* Header Accordion Toggle */}
         <button
           onClick={onToggleOpen}
-          className="w-full px-5 py-4 flex items-center justify-between text-left"
+          className="w-full px-5 py-4 flex items-center justify-between text-left cursor-pointer hover:bg-white/[0.02] transition-colors"
         >
           <div>
-            <p className="font-display text-sm font-semibold text-white">Your Trip Summary</p>
-            <p className="text-xs text-slate-500 mt-1">
-              <span className="font-board font-bold text-amber-300">{selection.origin}</span> → <span className="font-board font-bold text-cyan-300">{selection.destination}</span> · {selection.passengers} Passenger{selection.passengers > 1 ? "s" : ""}
+            <p className="font-display text-sm font-bold text-white tracking-wide">Reservation Summary</p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              <span className="font-bold text-amber-300">{selection.origin}</span> →{" "}
+              <span className="font-bold text-cyan-300">{selection.destination}</span> · {selection.passengers} Passenger{selection.passengers > 1 ? "s" : ""}
             </p>
           </div>
-          <span className={`text-slate-500 transition-transform duration-200 shrink-0 ${open ? "" : "-rotate-180"}`} aria-hidden>
-            <ChevronUpIcon />
+          <span className={`text-slate-400 transition-transform duration-200 shrink-0 ${open ? "" : "-rotate-180"}`} aria-hidden>
+            <ChevronUp className="w-4 h-4" />
           </span>
         </button>
 
         <div className={`grid transition-[grid-template-rows] duration-300 ease-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
           <div className="overflow-hidden">
             <PerforatedDivider />
-            <div className="px-5 py-4 space-y-2.5">
-              <p className="text-[10px] uppercase tracking-widest text-slate-500">Add-ons {selectedList.length > 0 && `(${selectedList.length})`}</p>
+
+            {/* Selected Add-ons Manifest */}
+            <div className="px-5 py-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-400">
+                  Custom Add-ons {selectedList.length > 0 && `(${selectedList.length})`}
+                </span>
+                {selectedList.length > 0 && (
+                  <span className="text-xs font-bold text-emerald-400 tabular-nums">
+                    +{formatINR(addonsTotal)}
+                  </span>
+                )}
+              </div>
+
               {selectedList.length === 0 ? (
-                <p className="text-xs text-slate-600 italic">No add-ons selected yet</p>
+                <p className="text-xs text-slate-500 italic py-1">No additional add-ons selected yet</p>
               ) : (
-                selectedList.map(({ addon, variant }) => (
-                  <div key={addon.id} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="flex items-center gap-2 text-slate-300 truncate min-w-0">
-                      <span className="w-6 h-6 rounded-md bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-[11px] shrink-0" aria-hidden>{addon.icon}</span>
-                      <span className="truncate">{addon.title} <span className="text-slate-600">· {variant.label}</span></span>
-                    </span>
-                    <span className="flex items-center gap-2 shrink-0">
-                      <span className="w-4 h-4 rounded-full bg-emerald-400/15 text-emerald-300 flex items-center justify-center shrink-0" aria-hidden>
-                        <CheckIcon />
+                <div className="space-y-2 pt-1">
+                  {selectedList.map(({ addon, variant }) => (
+                    <div key={addon.id} className="flex items-center justify-between gap-2 text-xs py-1 px-2.5 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                      <span className="flex items-center gap-2 text-slate-200 truncate min-w-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                        <span className="truncate">{addon.title}</span>
+                        <span className="text-slate-400">({variant.label})</span>
                       </span>
-                      <span className="text-slate-200 tabular-nums">{formatINR(variant.price)}</span>
-                      <button onClick={() => onRemoveAddon(addon.id)} className="text-slate-600 hover:text-rose-400 transition-colors" aria-label={`Remove ${addon.title}`}>✕</button>
-                    </span>
-                  </div>
-                ))
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-amber-300 font-semibold tabular-nums">{formatINR(variant.price)}</span>
+                        <button
+                          onClick={() => onRemoveAddon(addon.id)}
+                          className="text-slate-500 hover:text-rose-400 transition-colors p-0.5 cursor-pointer"
+                          aria-label={`Remove ${addon.title}`}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
 
             <PerforatedDivider />
 
-            <div className="px-5 pt-4 pb-1">
-              <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-2.5">Fare Breakdown</p>
-              <div className="space-y-1.5 text-[12px]">
-                <div className="flex justify-between"><span className="text-slate-500">Base Fare</span><span className="text-slate-400 tabular-nums">{formatINR(baseFare)}</span></div>
-                <div className="flex justify-between"><span className="text-slate-500">Taxes & Fees</span><span className="text-slate-400 tabular-nums">{formatINR(taxesAndFees)}</span></div>
+            {/* Fare Breakdown */}
+            <div className="px-5 py-3.5">
+              <span className="text-xs font-semibold text-slate-400 block mb-2.5">Fare Breakdown</span>
+              <div className="space-y-2 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Flight Base Fare</span>
+                  <span className="text-slate-300 font-medium tabular-nums">{formatINR(baseFare)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Aviation Taxes & Fees</span>
+                  <span className="text-slate-300 font-medium tabular-nums">{formatINR(taxesAndFees)}</span>
+                </div>
                 {seatSelectionPrice > 0 && (
-                  <div className="flex justify-between"><span className="text-slate-500">Seat Selection</span><span className="text-slate-400 tabular-nums">{formatINR(seatSelectionPrice)}</span></div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400">Seat Selection</span>
+                    <span className="text-slate-300 font-medium tabular-nums">{formatINR(seatSelectionPrice)}</span>
+                  </div>
                 )}
-                <div className="flex justify-between"><span className="text-slate-500">Add-ons Total</span><span className="text-emerald-400/80 tabular-nums">{formatINR(addonsTotal)}</span></div>
+                {addonsTotal > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-emerald-400">Selected Add-ons</span>
+                    <span className="text-emerald-400 font-semibold tabular-nums">{formatINR(addonsTotal)}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="px-5 pt-4 pb-4">
-          <div className="border border-blue-400/25 bg-blue-500/[0.07] rounded-xl px-4 py-3.5 flex items-end justify-between">
-            <span className="text-sm text-slate-300 font-medium">Trip Total</span>
-            <span className="font-board text-[28px] leading-none font-extrabold tabular-nums gold-glow-text">{formatINR(tripTotal)}</span>
+        {/* Total Price Banner with Rolling Counter */}
+        <div className="px-5 py-4 border-t border-white/[0.08] bg-[#0A1424]/90">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs uppercase font-bold text-slate-400 tracking-wide">Total Fare</span>
+            <span className="text-[11px] text-slate-500 font-medium">All taxes included</span>
+          </div>
+          <div className="flex items-baseline justify-between mt-1">
+            <span className="text-sm font-semibold text-slate-300">Amount to Pay</span>
+            <RollingPriceCounter value={tripTotal} size="md" />
           </div>
         </div>
 
+        {/* Savings Badge */}
         {addonsSavings > 0 && (
-          <div className="mx-5 mb-4 flex items-center gap-2.5 px-3.5 py-3 rounded-xl bg-emerald-400/[0.08] border border-emerald-400/20">
-            <span className="text-emerald-300 shrink-0">🏷</span>
-            <p className="text-[12px] text-emerald-300">You're saving {formatINR(addonsSavings)} with add-on discounts!</p>
+          <div className="mx-5 mb-4 flex items-center gap-2.5 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300">
+            <span className="text-emerald-400 shrink-0">🏷</span>
+            <span>You're saving {formatINR(addonsSavings)} on pre-booked packages!</span>
           </div>
         )}
 
+        {/* Continue Button */}
         <div className="px-5 pb-5">
-          <button onClick={onContinue} className="w-full px-6 py-3.5 rounded-full font-semibold pill-cta transition-all flex items-center justify-center gap-2">
-            Continue to Payment <span aria-hidden>→</span>
+          <button
+            onClick={onContinue}
+            className="w-full py-3.5 rounded-xl font-bold bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 text-slate-950 hover:brightness-110 shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+          >
+            <span>Proceed to Payment</span>
+            <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       </div>
 
+      {/* NavBot Concierge Card */}
       <NavBotTip />
     </div>
   )
@@ -958,25 +1351,35 @@ function TripSummary({ selection, baseFare, taxesAndFees, seatSelectionPrice, se
 
 function NavBotTip() {
   return (
-    <div className="relative bg-gradient-to-br from-cyan-400/[0.06] to-transparent border border-cyan-400/15 rounded-2xl p-5 flex items-start gap-3 overflow-hidden">
-      <div className="pointer-events-none absolute -bottom-10 -right-10 w-32 h-32 bg-cyan-400/[0.08] blur-[60px] rounded-full" aria-hidden />
-      <span className="w-10 h-10 rounded-full bg-cyan-400/10 border border-cyan-400/20 flex items-center justify-center text-xl shrink-0" aria-hidden>🤖</span>
-      <div className="relative">
-        <p className="text-xs font-semibold text-cyan-300">Need help with add-ons?</p>
-        <p className="text-sm text-slate-300 mt-1">NavBot is here!</p>
-        <button className="text-xs text-cyan-300 hover:text-cyan-200 transition-colors mt-2 border border-cyan-400/25 rounded-full px-3 py-1.5">Chat with NavBot</button>
+    <div className="relative bg-gradient-to-br from-cyan-500/[0.08] to-[#0A1424] border border-cyan-400/20 rounded-2xl p-4 flex items-start gap-3 shadow-md overflow-hidden">
+      <div className="w-9 h-9 rounded-xl bg-cyan-400/15 border border-cyan-400/25 flex items-center justify-center text-cyan-300 text-lg shrink-0">
+        🤖
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-bold text-cyan-200">Have questions about add-ons?</p>
+        <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
+          NavBot AI can recommend baggage allowance or meal options for your itinerary.
+        </p>
       </div>
     </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// PageShell — same stepper/style pattern as the seats & passengers pages
+// PageShell — Responsive Layout and Progress Stepper
 // ---------------------------------------------------------------------------
 
-function PageShell({ children, selection, router }: { children: React.ReactNode; selection?: CheckoutSelection; router?: ReturnType<typeof useRouter> }) {
+function PageShell({
+  children,
+  selection,
+  router,
+}: {
+  children: React.ReactNode
+  selection?: CheckoutSelection
+  router?: ReturnType<typeof useRouter>
+}) {
   return (
-    <div className="min-h-screen bg-[#060B14] text-white relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#060B14] text-white relative overflow-x-hidden selection:bg-amber-400/30">
       <PageStyles />
       <div className="pointer-events-none fixed inset-0 opacity-[0.05] mix-blend-overlay grain-layer" />
       <div className="pointer-events-none fixed top-[-200px] left-[15%] w-[600px] h-[600px] bg-[#D4AF37]/[0.05] blur-[160px] rounded-full" />
@@ -984,14 +1387,16 @@ function PageShell({ children, selection, router }: { children: React.ReactNode;
 
       <Navbar />
 
-      <div className="relative max-w-[1400px] mx-auto px-6 pt-24 pb-16">
-        <div className="flex items-center justify-between gap-6 mb-10">
+      <div className="relative max-w-[1400px] mx-auto px-4 sm:px-6 pt-24 pb-16">
+        <div className="flex items-center justify-between gap-6 mb-8">
           <button
             onClick={() => router?.push("/checkout/seats")}
-            className="group flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full text-sm text-slate-400 hover:text-white border border-transparent hover:border-white/10 hover:bg-white/[0.04] transition-colors shrink-0"
+            className="group flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full text-xs font-semibold text-slate-400 hover:text-white border border-transparent hover:border-white/10 hover:bg-white/[0.04] transition-all shrink-0 cursor-pointer"
           >
-            <span className="w-6 h-6 rounded-full bg-white/[0.05] flex items-center justify-center group-hover:bg-white/10 transition-colors" aria-hidden>←</span>
-            Back to seats
+            <span className="w-5 h-5 rounded-full bg-white/[0.06] flex items-center justify-center group-hover:bg-white/10 transition-colors" aria-hidden>
+              ←
+            </span>
+            Back to seat map
           </button>
           <Stepper currentStepId={5} />
         </div>
@@ -1004,11 +1409,11 @@ function PageShell({ children, selection, router }: { children: React.ReactNode;
 function Stepper({ currentStepId }: { currentStepId: number }) {
   const progressPct = ((currentStepId - 1) / (steps.length - 1)) * 100
   return (
-    <div className="relative hidden md:flex items-center flex-1 max-w-2xl">
+    <div className="relative hidden md:flex items-center flex-1 max-w-xl">
       <div className="absolute left-4 right-4 h-[2px] bg-white/[0.08] rounded-full" />
       <div
-        className="absolute left-4 h-[2px] bg-gradient-to-r from-emerald-400 to-[#D4AF37] rounded-full transition-all duration-500"
-        style={{ width: `calc(${progressPct}% - ${progressPct > 0 ? 32 : 0}px)` }}
+        className="absolute left-4 h-[2px] bg-gradient-to-r from-emerald-400 to-amber-400 rounded-full transition-all duration-500"
+        style={{ width: `calc(${progressPct}% - ${progressPct > 0 ? 28 : 0}px)` }}
       />
       <div className="relative flex items-center justify-between w-full">
         {steps.map((step) => {
@@ -1016,14 +1421,20 @@ function Stepper({ currentStepId }: { currentStepId: number }) {
           const isCurrent = step.id === currentStepId
           return (
             <div key={step.id} className="flex flex-col items-center gap-1.5 bg-[#060B14] px-1">
-              <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold border-2 transition-all ${
-                isCurrent ? "border-[#D4AF37] bg-[#D4AF37]/15 text-[#E8C766] shadow-[0_0_0_4px_rgba(212,175,55,0.12)] glow-pulse"
-                : isDone ? "border-emerald-400/70 bg-emerald-400/15 text-emerald-300"
-                : "border-white/15 bg-white/[0.03] text-slate-600"
-              }`}>
+              <span
+                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all ${
+                  isCurrent
+                    ? "border-amber-400 bg-amber-400/20 text-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.3)]"
+                    : isDone
+                    ? "border-emerald-400/80 bg-emerald-400/15 text-emerald-300"
+                    : "border-white/15 bg-white/[0.03] text-slate-600"
+                }`}
+              >
                 {isDone ? "✓" : step.id}
               </span>
-              <span className={`text-[11px] whitespace-nowrap ${isCurrent ? "text-[#E8C766] font-semibold" : isDone ? "text-emerald-300/70" : "text-slate-600"}`}>{step.label}</span>
+              <span className={`text-[11px] whitespace-nowrap font-medium ${isCurrent ? "text-amber-300 font-bold" : isDone ? "text-emerald-300/80" : "text-slate-600"}`}>
+                {step.label}
+              </span>
             </div>
           )
         })}
@@ -1035,95 +1446,15 @@ function Stepper({ currentStepId }: { currentStepId: number }) {
 function CenteredMessage({ text }: { text: string }) {
   return (
     <div className="min-h-[50vh] flex items-center justify-center">
-      <p className="text-slate-500 text-sm tracking-wide font-display">{text}</p>
+      <p className="text-slate-400 text-sm font-medium tracking-wide">{text}</p>
     </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Inline icons — slim outline style for the category rail (deliberately
-// distinct from the emoji used on the content cards, same way the
-// reference separates a plain-glyph nav from photographic cards)
-// ---------------------------------------------------------------------------
-
-function SparkleIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z" />
-    </svg>
-  )
-}
-function SuitcaseIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="7" width="18" height="13" rx="2" />
-      <path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" />
-      <path d="M3 12h18" />
-    </svg>
-  )
-}
-function SeatGlyphIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 4v9a2 2 0 002 2h8" />
-      <path d="M6 13H5a2 2 0 00-2 2v1a2 2 0 002 2h13a1 1 0 001-1v-1" />
-      <path d="M16 13V9a2 2 0 012-2h1" />
-    </svg>
-  )
-}
-function UtensilsIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 3v7a2 2 0 004 0V3" />
-      <path d="M8 10v11" />
-      <path d="M17 3c-1.5 0-2 2-2 4.5S15.5 11 17 11s2-2 2-4.5S18.5 3 17 3z" />
-      <path d="M17 11v10" />
-    </svg>
-  )
-}
-function BriefcaseIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="7" width="20" height="13" rx="2" />
-      <path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" />
-      <path d="M2 13h20" />
-    </svg>
-  )
-}
-function ShieldIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" />
-    </svg>
-  )
-}
-function PlaneIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2.5 19l19-7-19-7 3 7-3 7z" />
-      <path d="M5.5 12h9" />
-    </svg>
-  )
-}
-function ChevronUpIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 15l-6-6-6 6" />
-    </svg>
-  )
-}
-function CheckIcon() {
-  return (
-    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 6L9 17l-5-5" />
-    </svg>
   )
 }
 
 function PageStyles() {
   return (
     <style jsx global>{`
-      @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&display=swap');
       .font-display { font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif; letter-spacing: -0.01em; }
 
       .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
@@ -1133,30 +1464,14 @@ function PageStyles() {
       .ticket-edge::before {
         content: "";
         position: absolute;
-        inset: 3px;
-        border: 1px solid rgba(212,175,55,0.10);
+        inset: 1px;
+        border: 1px solid rgba(255,255,255,0.06);
         border-radius: inherit;
         pointer-events: none;
       }
 
-      .pill-cta {
-        background: linear-gradient(90deg, #38BDF8 0%, #60A5FA 30%, #D4AF37 70%, #FBBF24 100%);
-        color: #060B14;
-      }
-      .pill-cta:hover { filter: brightness(1.06); }
-
       .grain-layer {
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
-      }
-
-      @keyframes glowPulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
-      .glow-pulse { animation: glowPulse 1.8s ease-in-out infinite; }
-
-      @keyframes holdTimerPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(251,113,133,0.25); } 50% { box-shadow: 0 0 0 6px rgba(251,113,133,0); } }
-      .hold-timer-urgent { animation: holdTimerPulse 1.6s ease-in-out infinite; }
-
-      @media (prefers-reduced-motion: reduce) {
-        .glow-pulse, .hold-timer-urgent { animation: none !important; }
       }
     `}</style>
   )
