@@ -81,6 +81,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ passengers: list })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to fetch passenger registry" }, { status: 500 })
+    console.error("ADMIN PASSENGERS FETCH ERROR:", err)
+    return NextResponse.json({ error: "Failed to fetch passenger registry" }, { status: 500 })
   }
 }

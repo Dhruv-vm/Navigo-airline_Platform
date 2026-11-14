@@ -175,7 +175,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ instance
 
     if (classError) {
       console.error("FLIGHT INSTANCE CLASSES FETCH ERROR:", classError)
-      return NextResponse.json({ error: classError.message }, { status: 500 })
+      return NextResponse.json({ error: "Failed to load cabin class layout" }, { status: 500 })
     }
 
     let activeClassRows: CabinClassRow[] = classRows && classRows.length > 0 ? classRows : []

@@ -224,7 +224,7 @@ export async function POST(
 
     if (ownPriorError) {
       console.error("SEAT SAVE - OWN PRIOR SEATS LOOKUP ERROR:", ownPriorError)
-      return NextResponse.json({ error: ownPriorError.message }, { status: 500 })
+      return NextResponse.json({ error: "Failed to verify previous seat selections" }, { status: 500 })
     }
 
     if (ownPriorSeats && ownPriorSeats.length > 0) {
@@ -251,7 +251,7 @@ export async function POST(
 
     if (deleteError) {
       console.error("SEAT SAVE - CLEANUP OLD PICKS ERROR:", deleteError)
-      return NextResponse.json({ error: deleteError.message }, { status: 500 })
+      return NextResponse.json({ error: "Failed to update seat selection" }, { status: 500 })
     }
 
     // ── Step 3: check + decrement availability for the NEW picks ────────
@@ -348,7 +348,7 @@ export async function POST(
         )
       }
       console.error("SEAT SAVE - INSERT ERROR:", insertError)
-      return NextResponse.json({ error: insertError.message }, { status: 500 })
+      return NextResponse.json({ error: "Failed to save selected seats" }, { status: 500 })
     }
 
     const seatSelectionPrice = allPicks.reduce((sum, p) => sum + Number(p.price || 0), 0)
@@ -365,7 +365,7 @@ export async function POST(
 
     if (updateError) {
       console.error("BOOKING SEAT UPDATE ERROR:", updateError)
-      return NextResponse.json({ error: updateError.message }, { status: 500 })
+      return NextResponse.json({ error: "Failed to update booking with seat choices" }, { status: 500 })
     }
 
     return NextResponse.json({ bookingId, seatSelectionPrice, holdExpiresAt })
@@ -399,8 +399,15 @@ export async function GET(
       .eq("id", bookingId)
       .maybeSingle()
 
+    if (!booking) {
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 })
+    }
+
     const user = getUserFromRequest(req)
-    if (booking?.user_id && (!user || user.userId !== booking.user_id)) {
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+    }
+    if (booking.user_id && user.userId !== booking.user_id) {
       return NextResponse.json({ error: "Unauthorized access to this booking" }, { status: 403 })
     }
 
@@ -410,8 +417,8 @@ export async function GET(
       .eq("booking_id", bookingId)
 
     if (error) {
-      console.error("SEATS GET (by booking) ERROR:", error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.error("SEATS GET (by booking) ERROR")
+      return NextResponse.json({ error: "Failed to load seat reservations" }, { status: 500 })
     }
 
     return NextResponse.json({
@@ -458,8 +465,15 @@ export async function DELETE(
       .eq("id", bookingId)
       .maybeSingle()
 
+    if (!booking) {
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 })
+    }
+
     const user = getUserFromRequest(req)
-    if (booking?.user_id && (!user || user.userId !== booking.user_id)) {
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+    }
+    if (booking.user_id && user.userId !== booking.user_id) {
       return NextResponse.json({ error: "Unauthorized access to this booking" }, { status: 403 })
     }
 
@@ -469,8 +483,8 @@ export async function DELETE(
       .eq("booking_id", bookingId)
 
     if (ownSeatsError) {
-      console.error("SEATS RELEASE - LOOKUP ERROR:", ownSeatsError)
-      return NextResponse.json({ error: ownSeatsError.message }, { status: 500 })
+      console.error("SEATS RELEASE - LOOKUP ERROR")
+      return NextResponse.json({ error: "Failed to inspect held seats" }, { status: 500 })
     }
 
     if (!ownSeats || ownSeats.length === 0) {
@@ -499,8 +513,8 @@ export async function DELETE(
       .eq("booking_id", bookingId)
 
     if (deleteError) {
-      console.error("SEATS RELEASE - DELETE ERROR:", deleteError)
-      return NextResponse.json({ error: deleteError.message }, { status: 500 })
+      console.error("SEATS RELEASE - DELETE ERROR")
+      return NextResponse.json({ error: "Failed to release held seats" }, { status: 500 })
     }
 
     return NextResponse.json({ released: ownSeats.length })

@@ -34,13 +34,13 @@ export async function GET(
 
   const { data, error } = await supabase
     .from("booking_passengers")
-    .select("*")
+    .select("id, booking_id, title, first_name, middle_name, last_name, date_of_birth, gender, nationality, frequent_flyer, passenger_type, is_primary_contact, passenger_index")
     .eq("booking_id", bookingId)
     .order("passenger_index", { ascending: true })
 
   if (error) {
-    console.error("[GET /api/bookings/:id/passengers]", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error("[GET /api/bookings/:id/passengers] DB error")
+    return NextResponse.json({ error: "Failed to load passenger details" }, { status: 500 })
   }
 
   return NextResponse.json({ passengers: data ?? [] })

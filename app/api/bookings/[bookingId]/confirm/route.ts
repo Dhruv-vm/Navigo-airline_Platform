@@ -175,7 +175,7 @@ export async function POST(
 
     if (lastError) {
       console.error("CONFIRM BOOKING - UPDATE ERROR:", lastError)
-      return NextResponse.json({ error: lastError.message }, { status: 500 })
+      return NextResponse.json({ error: "Failed to confirm booking" }, { status: 500 })
     }
 
     return NextResponse.json({

@@ -11,7 +11,8 @@ export async function GET(req: Request) {
     const logs = getAdminAuditLogs(100)
     return NextResponse.json({ logs })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to fetch audit trail" }, { status: 500 })
+    console.error("ADMIN AUDIT LOGS FETCH ERROR:", err)
+    return NextResponse.json({ error: "Failed to fetch audit trail" }, { status: 500 })
   }
 }
 
@@ -34,6 +35,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, log })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to record audit log" }, { status: 500 })
+    console.error("ADMIN AUDIT LOGS POST ERROR:", err)
+    return NextResponse.json({ error: "Failed to record audit log" }, { status: 500 })
   }
 }

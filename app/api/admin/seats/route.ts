@@ -71,7 +71,8 @@ export async function GET(req: Request) {
       })),
     })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to load seat map" }, { status: 500 })
+    console.error("ADMIN SEATS GET ERROR:", err)
+    return NextResponse.json({ error: "Failed to load seat map" }, { status: 500 })
   }
 }
 
@@ -104,6 +105,7 @@ export async function POST(req: Request) {
       blockedSeats,
     })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to modify seat block state" }, { status: 500 })
+    console.error("ADMIN SEATS POST ERROR:", err)
+    return NextResponse.json({ error: "Failed to modify seat block state" }, { status: 500 })
   }
 }

@@ -133,7 +133,8 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ bookings: list })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to fetch bookings" }, { status: 500 })
+    console.error("ADMIN BOOKINGS FETCH ERROR:", err)
+    return NextResponse.json({ error: "Failed to fetch bookings" }, { status: 500 })
   }
 }
 
@@ -169,6 +170,7 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json({ success: true, booking: data })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to update booking status" }, { status: 500 })
+    console.error("ADMIN BOOKINGS UPDATE ERROR:", err)
+    return NextResponse.json({ error: "Failed to update booking status" }, { status: 500 })
   }
 }

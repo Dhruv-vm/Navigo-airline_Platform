@@ -7,7 +7,6 @@ export async function POST(req: Request) {
     const body = await req.json()
     const { email } = body
 
-    // ❌ Validate
     if (!email) {
       return NextResponse.json(
         { error: "Email is required" },
@@ -15,31 +14,29 @@ export async function POST(req: Request) {
       )
     }
 
-    console.log("🔍 Checking user:", email)
+    const cleanEmail = email.trim().toLowerCase()
 
-    const cleanEmail = email.trim()
-
-    // 🔍 Check if user exists
+    // Check if user exists
     const { data: user, error: userError } = await supabase
       .from("users")
-      .select("*")
+      .select("id")
       .ilike("email", cleanEmail)
       .maybeSingle()
 
     if (userError || !user) {
-      // Prevent user enumeration
+      // Prevent user enumeration: always return the same generic message
       return NextResponse.json({
         message: "If an account exists with this email, password reset instructions have been sent.",
       })
     }
 
-    // 🔐 Generate reset token
+    // Generate cryptographically secure reset token
     const token = crypto.randomBytes(32).toString("hex")
 
-    // ⏳ Expiry (15 minutes)
+    // Token expiry (15 minutes)
     const expiry = new Date(Date.now() + 1000 * 60 * 15)
 
-    // 💾 Save token in DB
+    // Save token in DB
     const { error: updateError } = await supabase
       .from("users")
       .update({
@@ -49,31 +46,27 @@ export async function POST(req: Request) {
       .eq("id", user.id)
 
     if (updateError) {
-      console.error("❌ DB update failed:", updateError)
+      console.error("DB update failed during password reset")
       return NextResponse.json(
-        { error: "Failed to process password reset" },
+        { error: "Failed to process password reset request" },
         { status: 500 }
       )
     }
 
-    // 🔗 Create reset link (frontend route)
-    const origin = req.headers.get("origin") || req.headers.get("referer")?.replace(/\/$/, "") || "http://localhost:3000"
-    const resetLink = `${origin}/reset-password?token=${token}`
-
+    // Server-side only: never return the reset token or link over the network to the client
     if (process.env.NODE_ENV !== "production") {
-      console.log("📩 RESET LINK (DEV ONLY):", resetLink)
+      const origin = req.headers.get("origin") || req.headers.get("referer")?.replace(/\/$/, "") || "http://localhost:3000"
+      console.log("Password reset link generated for server logs only:", `${origin}/reset-password?token=${token}`)
     }
 
     return NextResponse.json({
       message: "If an account exists with this email, password reset instructions have been sent.",
-      ...(process.env.NODE_ENV !== "production" ? { devResetLink: resetLink } : {}),
     })
 
   } catch (err) {
-    console.error("❌ Forgot password error:", err)
-
+    console.error("Forgot password error occurred")
     return NextResponse.json(
-      { error: "Something went wrong" },
+      { error: "Failed to process password reset request" },
       { status: 500 }
     )
   }

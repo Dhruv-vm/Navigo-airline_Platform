@@ -153,6 +153,6 @@ export async function POST(req: Request) {
     })
   } catch (err: any) {
     console.error("Smart checkin error:", err)
-    return NextResponse.json({ error: err.message || "Failed to complete Smart Check-In" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to complete Smart Check-In" }, { status: 500 })
   }
 }

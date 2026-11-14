@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     // 🔍 Find user with token
     const { data: user, error } = await supabase
       .from("users")
-      .select("*")
+      .select("id, reset_token_expiry")
       .eq("reset_token", token)
       .maybeSingle()
 

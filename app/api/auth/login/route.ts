@@ -43,35 +43,29 @@ export async function POST(req: Request) {
     }
 
     // 2️⃣ FIND STANDARD PASSENGER USER IN DATABASE
-    const cleanEmail = email.trim()
+    const cleanEmail = email.trim().toLowerCase()
     const { data: user, error } = await supabase
       .from("users")
-      .select("*")
+      .select("id, name, email, password")
       .ilike("email", cleanEmail)
       .maybeSingle()
 
     if (error || !user) {
-      console.log("❌ USER NOT FOUND")
       return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
+        { error: "Invalid email or password" },
+        { status: 401 }
       )
     }
-
-    console.log("✅ USER FOUND")
 
     // 2️⃣ CHECK PASSWORD
     const isMatch = await bcrypt.compare(password, user.password)
 
     if (!isMatch) {
-      console.log("❌ WRONG PASSWORD")
       return NextResponse.json(
-        { error: "Invalid credentials" },
+        { error: "Invalid email or password" },
         { status: 401 }
       )
     }
-
-    console.log("✅ PASSWORD MATCH")
 
     // 3️⃣ CREATE TOKEN
     const secret = process.env.JWT_SECRET || "navigo_jwt_secret_token_2026"
@@ -83,8 +77,6 @@ export async function POST(req: Request) {
       secret,
       { expiresIn: "7d" }
     )
-
-    console.log("🔐 TOKEN GENERATED")
 
     // 4️⃣ RETURN RESPONSE
     return NextResponse.json({
@@ -98,9 +90,9 @@ export async function POST(req: Request) {
     })
 
   } catch (err: any) {
-    console.error("🔥 LOGIN ERROR:", err)
+    console.error("Login server error")
     return NextResponse.json(
-      { error: err.message },
+      { error: "An unexpected error occurred during login" },
       { status: 500 }
     )
   }

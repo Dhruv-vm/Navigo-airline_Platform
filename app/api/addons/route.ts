@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { getAddonsCatalog, updateAddonPrice, toggleAddonActive } from "@/lib/addons-catalog"
-import { recordAdminAuditLog } from "@/lib/admin-auth"
+import { recordAdminAuditLog, getAdminFromRequest } from "@/lib/admin-auth"
 
 export async function GET() {
   return NextResponse.json({ addons: getAddonsCatalog() })
@@ -8,13 +8,18 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    const admin = getAdminFromRequest(req)
+    if (!admin) {
+      return NextResponse.json({ error: "Unauthorized administrative access" }, { status: 401 })
+    }
+
     const body = await req.json()
     const { action, id, price } = body
 
     if (action === "UPDATE_PRICE" && id && typeof price === "number") {
       const updated = updateAddonPrice(id, price)
       recordAdminAuditLog(
-        { id: "adm-dhruv", name: "Admin", role: "SUPER_ADMIN" },
+        admin,
         "UPDATE_ADDON_PRICE",
         `Addon: ${id} → ₹${price}`
       )
@@ -24,7 +29,7 @@ export async function POST(req: Request) {
     if (action === "TOGGLE_ACTIVE" && id) {
       const updated = toggleAddonActive(id)
       recordAdminAuditLog(
-        { id: "adm-dhruv", name: "Admin", role: "SUPER_ADMIN" },
+        admin,
         "TOGGLE_ADDON_STATUS",
         `Addon: ${id}`
       )
@@ -33,6 +38,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to update addon" }, { status: 500 })
+    console.error("Addon update error")
+    return NextResponse.json({ error: "Failed to update addon" }, { status: 500 })
   }
 }

@@ -20,7 +20,7 @@ export async function GET(req: Request) {
 
   if (error) {
     console.error("[GET /api/saved-passengers]", error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: "Failed to retrieve saved passengers" }, { status: 500 })
   }
 
   return NextResponse.json({ passengers: data ?? [] })

@@ -124,7 +124,7 @@ export async function POST(req: Request) {
 
       if (updateError) {
         console.error("BOOKING UPDATE ERROR:", updateError)
-        return NextResponse.json({ error: updateError.message }, { status: 500 })
+        return NextResponse.json({ error: "Failed to update draft booking" }, { status: 500 })
       }
 
       if (!updated || updated.length === 0) {
@@ -140,7 +140,7 @@ export async function POST(req: Request) {
 
         if (deleteError) {
           console.error("PASSENGER DELETE ERROR:", deleteError)
-          return NextResponse.json({ error: deleteError.message }, { status: 500 })
+          return NextResponse.json({ error: "Failed to update passengers" }, { status: 500 })
         }
       }
     }
@@ -154,7 +154,7 @@ export async function POST(req: Request) {
 
       if (insertError || !inserted) {
         console.error("BOOKING INSERT ERROR:", insertError)
-        return NextResponse.json({ error: insertError?.message || "Failed to create booking" }, { status: 500 })
+        return NextResponse.json({ error: "Failed to create booking" }, { status: 500 })
       }
 
       bookingId = inserted.id
@@ -203,7 +203,7 @@ export async function POST(req: Request) {
         .select()
       if (retryErr) {
         console.error("PASSENGER INSERT RETRY ERROR:", retryErr)
-        return NextResponse.json({ error: retryErr.message }, { status: 500 })
+        return NextResponse.json({ error: "Failed to save passenger details" }, { status: 500 })
       }
       insertedPassengers = fallbackPax
     }
@@ -286,7 +286,7 @@ export async function GET(req: Request) {
 
     if (bErr) {
       console.error("BOOKINGS GET ERROR:", bErr)
-      return NextResponse.json({ error: bErr.message }, { status: 500 })
+      return NextResponse.json({ error: "Failed to load bookings" }, { status: 500 })
     }
 
     // 2. Fetch associated flight instances and flights

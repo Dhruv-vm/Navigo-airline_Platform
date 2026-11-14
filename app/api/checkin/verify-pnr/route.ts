@@ -50,11 +50,22 @@ export async function POST(req: Request) {
     ])
 
     const paxList = passengersRes.data || []
-    if (lastName && paxList.length > 0) {
+    
+    // Security check: require matching last name unless caller is the authenticated booking owner
+    const authUser = getUserFromRequest(req)
+    const isOwner = Boolean(authUser && booking.user_id && authUser.userId === booking.user_id)
+
+    if (!isOwner) {
+      if (!lastName) {
+        return NextResponse.json(
+          { error: "Passenger last name is required to retrieve booking details" },
+          { status: 400 }
+        )
+      }
       const match = paxList.some((p: any) => (p.last_name || "").toLowerCase() === lastName)
       if (!match) {
         return NextResponse.json(
-          { error: `Last name "${lastName}" does not match booking record for PNR ${pnr}.` },
+          { error: `Last name "${body?.lastName || ""}" does not match booking record for PNR ${pnr}.` },
           { status: 400 }
         )
       }
@@ -117,23 +128,40 @@ export async function POST(req: Request) {
       })
     }
 
-    // 6. Check Biometric Profile for user
-    const authUser = getUserFromRequest(req)
-    const userIdToCheck = booking.user_id || authUser?.userId
-    let biometricProfile = null
-    if (userIdToCheck) {
-      biometricProfile = await getBiometricProfile(userIdToCheck)
+    // 6. Check Biometric Profile strictly for authenticated owner
+    let hasBiometricProfile = false
+    let biometricProfileInfo: any = null
+    if (isOwner && booking.user_id) {
+      const biometricProfile = await getBiometricProfile(booking.user_id)
+      if (biometricProfile && biometricProfile.isActive) {
+        hasBiometricProfile = true
+        biometricProfileInfo = {
+          lastVerifiedAt: biometricProfile.lastVerifiedAt,
+          isActive: true,
+        }
+      }
     }
 
-    const formattedPassengers = paxList.map((p) => ({
-      id: p.id,
-      name: `${p.title ? p.title + " " : ""}${p.first_name} ${p.last_name}`.trim(),
-      firstName: p.first_name,
-      lastName: p.last_name,
-      email: p.email || booking.contact_email,
-      isPrimary: p.is_primary_contact,
-      type: p.passenger_type,
-    }))
+    // Mask sensitive contact details for non-owners to prevent PNR-based data harvesting
+    const maskEmail = (em?: string) => {
+      if (!em || !em.includes("@")) return "—"
+      const [u, d] = em.split("@")
+      if (u.length <= 2) return `${u[0]}***@${d}`
+      return `${u[0]}***${u[u.length - 1]}@${d}`
+    }
+
+    const formattedPassengers = paxList.map((p) => {
+      const rawEmail = p.email || booking.contact_email
+      return {
+        id: p.id,
+        name: `${p.title ? p.title + " " : ""}${p.first_name} ${p.last_name}`.trim(),
+        firstName: p.first_name,
+        lastName: p.last_name,
+        email: isOwner ? rawEmail : maskEmail(rawEmail),
+        isPrimary: p.is_primary_contact,
+        type: p.passenger_type,
+      }
+    })
 
     const formattedSeats = (seats || []).map((s) => ({
       flightInstanceId: s.flight_instance_id,
@@ -154,18 +182,12 @@ export async function POST(req: Request) {
         passengers: formattedPassengers,
         seats: formattedSeats,
       },
-      hasBiometricProfile: !!biometricProfile && biometricProfile.isActive,
-      biometricProfile: biometricProfile
-        ? {
-            biometricProfileId: biometricProfile.biometricProfileId,
-            lastVerifiedAt: biometricProfile.lastVerifiedAt,
-            isActive: biometricProfile.isActive,
-          }
-        : null,
+      hasBiometricProfile,
+      biometricProfile: biometricProfileInfo,
       canSmartCheckIn: true,
     })
   } catch (err: any) {
-    console.error("Check-in PNR verification error:", err)
-    return NextResponse.json({ error: err.message || "Failed to verify booking PNR" }, { status: 500 })
+    console.error("Check-in PNR verification error occurred")
+    return NextResponse.json({ error: "Failed to verify booking reference" }, { status: 500 })
   }
 }

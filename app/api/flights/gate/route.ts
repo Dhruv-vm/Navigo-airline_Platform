@@ -28,7 +28,7 @@ export async function GET(req: Request) {
 
     if (error) {
       console.error("FLIGHT GATE LOOKUP ERROR:", error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: "Failed to look up gate assignments" }, { status: 500 })
     }
 
     const gates: Record<string, string> = {}

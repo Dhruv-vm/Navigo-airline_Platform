@@ -162,6 +162,6 @@ export async function GET(req: Request) {
     })
   } catch (err: any) {
     console.error("Admin stats aggregation error:", err)
-    return NextResponse.json({ error: err.message || "Failed to load admin stats" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to load admin stats" }, { status: 500 })
   }
 }

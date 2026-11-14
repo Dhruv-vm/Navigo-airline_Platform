@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { NextResponse } from 'next/server'
 import { computeDynamicPrice } from '@/lib/pricing'
+import { getAdminFromRequest } from '@/lib/admin-auth'
 
 // ✅ FIXED — departure_time / arrival_time are "HH:MM:SS" strings, NOT ISO datetimes.
 // Parsing them as `new Date("06:00:00")` gives Invalid Date → NaN duration.
@@ -98,7 +99,8 @@ export async function GET(req: Request) {
   const { data, error } = await query
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error("Flights search error")
+    return NextResponse.json({ error: "Failed to search flights" }, { status: 500 })
   }
 
   if (!data || data.length === 0) {
@@ -212,8 +214,13 @@ export async function GET(req: Request) {
   return NextResponse.json(taggedFlights)
 }
 
-// CREATE flight
+// CREATE flight (Restricted to authenticated airline administrators)
 export async function POST(req: Request) {
+  const admin = getAdminFromRequest(req)
+  if (!admin) {
+    return NextResponse.json({ error: "Unauthorized administrative access" }, { status: 401 })
+  }
+
   const body = await req.json()
 
   const { data, error } = await supabase
@@ -222,7 +229,8 @@ export async function POST(req: Request) {
     .select()
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error("Flight creation error")
+    return NextResponse.json({ error: "Failed to create flight record" }, { status: 500 })
   }
 
   return NextResponse.json(data)

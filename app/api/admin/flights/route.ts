@@ -39,7 +39,8 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ flights: list })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to fetch flights" }, { status: 500 })
+    console.error("ADMIN FLIGHTS FETCH ERROR:", err)
+    return NextResponse.json({ error: "Failed to fetch flights" }, { status: 500 })
   }
 }
 
@@ -97,7 +98,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, flight: data })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to create flight" }, { status: 500 })
+    console.error("ADMIN FLIGHTS CREATE ERROR:", err)
+    return NextResponse.json({ error: "Failed to create flight" }, { status: 500 })
   }
 }
 
@@ -131,7 +133,8 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json({ success: true, flight: data })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to update flight" }, { status: 500 })
+    console.error("ADMIN FLIGHTS UPDATE ERROR:", err)
+    return NextResponse.json({ error: "Failed to update flight" }, { status: 500 })
   }
 }
 
@@ -158,6 +161,7 @@ export async function DELETE(req: Request) {
 
     return NextResponse.json({ success: true, message: `Flight ${id} removed` })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to delete flight" }, { status: 500 })
+    console.error("ADMIN FLIGHTS DELETE ERROR:", err)
+    return NextResponse.json({ error: "Failed to delete flight" }, { status: 500 })
   }
 }

@@ -4,11 +4,7 @@ import bcrypt from "bcryptjs"
 
 export async function POST(req: Request) {
   try {
-    console.log("🔥 START SIGNUP")
-
     const body = await req.json()
-    console.log("📦 BODY:", body)
-
     const { name, email, phone, password } = body
 
     if (!email || !password || !name) {
@@ -30,8 +26,6 @@ export async function POST(req: Request) {
 
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    console.log("📡 INSERTING INTO SUPABASE...")
-
     const { error } = await supabase
       .from("users")
       .insert([
@@ -44,18 +38,16 @@ export async function POST(req: Request) {
       ])
 
     if (error) {
-      console.error("❌ SUPABASE ERROR:", error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.error("User registration DB error")
+      return NextResponse.json({ error: "Failed to create user account" }, { status: 500 })
     }
-
-    console.log("✅ INSERT SUCCESS")
 
     return NextResponse.json({
       message: "User created successfully"
     })
 
   } catch (err: any) {
-    console.error("🔥 SERVER ERROR:", err)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    console.error("Signup server error")
+    return NextResponse.json({ error: "An unexpected error occurred during signup" }, { status: 500 })
   }
 }

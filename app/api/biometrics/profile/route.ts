@@ -20,7 +20,6 @@ export async function GET(req: Request) {
       profile: profile
         ? {
             biometricProfileId: profile.biometricProfileId,
-            faceTemplateHash: profile.faceTemplateHash.slice(0, 16) + "...",
             consentGiven: profile.consentGiven,
             consentTimestamp: profile.consentTimestamp,
             isActive: profile.isActive,
@@ -30,7 +29,8 @@ export async function GET(req: Request) {
         : null,
     })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to load biometric profile" }, { status: 500 })
+    console.error("Biometric profile retrieval error")
+    return NextResponse.json({ error: "Failed to load biometric profile" }, { status: 500 })
   }
 }
 
@@ -58,7 +58,6 @@ export async function POST(req: Request) {
       message: "Smart Boarding face profile created successfully",
       profile: {
         biometricProfileId: profile.biometricProfileId,
-        faceTemplateHash: profile.faceTemplateHash.slice(0, 16) + "...",
         consentGiven: profile.consentGiven,
         consentTimestamp: profile.consentTimestamp,
         isActive: profile.isActive,
@@ -66,7 +65,8 @@ export async function POST(req: Request) {
       },
     })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to save face profile" }, { status: 500 })
+    console.error("Biometric profile save error")
+    return NextResponse.json({ error: "Failed to save face profile" }, { status: 500 })
   }
 }
 
@@ -84,6 +84,7 @@ export async function DELETE(req: Request) {
       message: "Biometric face profile has been permanently removed.",
     })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to delete face profile" }, { status: 500 })
+    console.error("Biometric profile deletion error")
+    return NextResponse.json({ error: "Failed to delete face profile" }, { status: 500 })
   }
 }

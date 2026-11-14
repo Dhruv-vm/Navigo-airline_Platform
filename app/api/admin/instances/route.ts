@@ -118,7 +118,8 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ instances: list })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to load flight instances" }, { status: 500 })
+    console.error("ADMIN INSTANCES GET ERROR:", err)
+    return NextResponse.json({ error: "Failed to load flight instances" }, { status: 500 })
   }
 }
 
@@ -178,7 +179,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, count: data?.length, instances: data })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to generate instances" }, { status: 500 })
+    console.error("ADMIN INSTANCES CREATE ERROR:", err)
+    return NextResponse.json({ error: "Failed to generate instances" }, { status: 500 })
   }
 }
 
@@ -217,6 +219,7 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json({ success: true, instance: data })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to update instance" }, { status: 500 })
+    console.error("ADMIN INSTANCES UPDATE ERROR:", err)
+    return NextResponse.json({ error: "Failed to update instance" }, { status: 500 })
   }
 }
