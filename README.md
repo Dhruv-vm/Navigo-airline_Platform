@@ -38,18 +38,51 @@ Navigo covers the full passenger journey of a commercial airline, from searching
 
 ## Screenshots
 
+> All passenger details in these screenshots are placeholder data (passenger name **XYZ**).
+
+### Booking flow
+
 <table>
   <tr>
-    <td width="50%"><b>Home &amp; flight search</b><br/><img src="public/screenshots/01-home.png" alt="Home page with flight search" /></td>
-    <td width="50%"><b>Search results &amp; price intelligence</b><br/><img src="public/screenshots/02-flight-search.png" alt="Flight search results" /></td>
+    <td width="50%"><b>1 · Home &amp; flight search</b><br/><img src="public/screenshots/01-home.png" alt="Home page with flight search" /></td>
+    <td width="50%"><b>2 · Search results &amp; price insights</b><br/><img src="public/screenshots/02-flight-search.png" alt="Flight search results" /></td>
   </tr>
   <tr>
-    <td><b>Passenger details</b><br/><img src="public/screenshots/03-passengers.png" alt="Passenger manifest form" /></td>
-    <td><b>Seat selection</b><br/><img src="public/screenshots/04-seat-selection.png" alt="Cabin seat map" /></td>
+    <td><b>3 · Passenger details</b><br/><img src="public/screenshots/03-passengers.png" alt="Passenger details form" /></td>
+    <td><b>4 · Seat selection — Business Class</b><br/><img src="public/screenshots/04-seat-business.png" alt="Business class lie-flat seat map" /></td>
   </tr>
   <tr>
-    <td><b>Add-ons</b><br/><img src="public/screenshots/05-addons.png" alt="Add-ons marketplace" /></td>
-    <td><b>Payment</b><br/><img src="public/screenshots/06-payment.png" alt="Payment page" /></td>
+    <td><b>5 · Seat selection — First Class</b><br/><img src="public/screenshots/05-seat-first.png" alt="First class suite seat map" /></td>
+    <td><b>6 · Add-ons</b><br/><img src="public/screenshots/06-addons.png" alt="Add-ons marketplace" /></td>
+  </tr>
+  <tr>
+    <td><b>7 · Payment</b><br/><img src="public/screenshots/07-payment.png" alt="Payment page with card form" /></td>
+    <td><b>8 · Booking confirmed &amp; boarding pass</b><br/><img src="public/screenshots/08-boarding-pass.png" alt="Booking confirmation with e-boarding pass" /></td>
+  </tr>
+</table>
+
+### Passenger account
+
+<table>
+  <tr>
+    <td width="50%"><b>Dashboard</b><br/><img src="public/screenshots/09-dashboard.png" alt="Passenger dashboard" /></td>
+    <td width="50%"><b>Digital boarding pass</b><br/><img src="public/screenshots/10-digital-pass.png" alt="E-boarding pass modal" /></td>
+  </tr>
+  <tr>
+    <td><b>My Trips</b><br/><img src="public/screenshots/11-my-trips.png" alt="Booking history" /></td>
+    <td><b>NaviBot assistant</b><br/><img src="public/screenshots/14-navibot.png" alt="NaviBot assistant" /></td>
+  </tr>
+</table>
+
+### Airport &amp; operations
+
+<table>
+  <tr>
+    <td width="50%"><b>Smart check-in</b><br/><img src="public/screenshots/12-check-in.png" alt="Smart check-in" /></td>
+    <td width="50%"><b>Gate scanner</b><br/><img src="public/screenshots/13-gate-scanner.png" alt="DigiYatra gate scanner" /></td>
+  </tr>
+  <tr>
+    <td colspan="2"><b>Admin — Airport Command Center</b><br/><img src="public/screenshots/15-admin.png" alt="Admin operations dashboard" /></td>
   </tr>
 </table>
 
